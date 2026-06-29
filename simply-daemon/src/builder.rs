@@ -291,6 +291,33 @@ pub fn create_voice_service() -> VoiceService {
         }
     }
 
+    // These load large local models at construction — warn and skip on
+    // failure rather than taking the daemon down.
+    #[cfg(feature = "kyutai")]
+    {
+        let hf_repo = std::env::var("KYUTAI_STT_REPO").ok();
+        match simply_voice::KyutaiSttProvider::new(hf_repo, false) {
+            Ok(p) => {
+                tracing::info!("kyutai STT loaded");
+                voice = voice.register_stt("kyutai", "Kyutai STT (local)", Arc::new(p));
+            }
+            Err(e) => tracing::warn!("failed to load kyutai STT model: {e:#}"),
+        }
+    }
+
+    #[cfg(feature = "pocket-tts")]
+    {
+        let default_voice =
+            std::env::var("POCKET_TTS_VOICE").unwrap_or_else(|_| "alba".into());
+        match simply_voice::PocketTtsProvider::new(default_voice) {
+            Ok(p) => {
+                tracing::info!("pocket-tts TTS loaded");
+                voice = voice.register_tts("pocket-tts", "Pocket TTS (local)", Arc::new(p));
+            }
+            Err(e) => tracing::warn!("failed to load pocket-tts model: {e:#}"),
+        }
+    }
+
     if let Ok(base_url) = std::env::var("VOXTRAL_BASE_URL") {
         let voxtral = Arc::new(simply_voice::VoxtralProvider::local(&base_url));
         voice = voice

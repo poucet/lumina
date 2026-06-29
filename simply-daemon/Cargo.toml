@@ -7,6 +7,10 @@ description = "Simply platform daemon — trait-based API with in-process and re
 [features]
 default = []
 whisper = ["simply-voice/whisper"]
+pocket-tts = ["simply-voice/pocket-tts"]
+kyutai = ["simply-voice/kyutai"]
+# Apple Silicon acceleration for the local-model voice providers.
+voice-metal = ["simply-voice/metal"]
 
 [lib]
 name = "simply_daemon"
