@@ -25,12 +25,40 @@ impl ModelService {
         self.default_model_id.lock().await.clone()
     }
 
+    /// Whether a provider has credentials available (settings key or env var).
+    /// Providers that need no API key (e.g. ollama) are always considered configured.
+    fn provider_configured(settings: &config::Settings, info: &llm::ProviderInfo) -> bool {
+        match &info.api_key_env {
+            None => true,
+            Some(env) => settings.has_api_key(&info.name) || std::env::var(env).is_ok(),
+        }
+    }
+
     async fn fetch_all_models(&self) -> Vec<llm::ModelInfo> {
+        let settings = config::Settings::load();
         let mut all = Vec::new();
-        for (provider, result) in llm::list_all_models().await {
-            match result {
+        for info in llm::list_providers() {
+            // Skip providers the user never configured; failing to list their
+            // models is expected and not worth a warning.
+            if !Self::provider_configured(&settings, &info) {
+                tracing::debug!(provider = %info.name, "skipping model fetch: provider not configured");
+                continue;
+            }
+            match llm::list_models(&info.name).await {
                 Ok(models) => all.extend(models),
-                Err(e) => tracing::warn!(provider, error = %e, "failed to fetch models"),
+                Err(e) => {
+                    let msg = e.to_string();
+                    let auth_failure = msg.contains("401") || msg.contains("403");
+                    if auth_failure {
+                        tracing::warn!(
+                            provider = %info.name,
+                            error = %e,
+                            "failed to fetch models: stored API key appears invalid — update or remove it in settings"
+                        );
+                    } else {
+                        tracing::warn!(provider = %info.name, error = %e, "failed to fetch models");
+                    }
+                }
             }
         }
         *self.cached_models.lock().await = Some(all.clone());
