@@ -95,6 +95,12 @@ impl PathManager {
         Self::models_dir().map(|d| d.join("ggml-base.en.bin"))
     }
 
+    /// Directory for Aurora voice embeddings (.safetensors) and reference
+    /// clips (.wav), managed by the `aurora-voice` CLI.
+    pub fn aurora_voices_dir() -> Option<PathBuf> {
+        Self::models_dir().map(|d| d.join("aurora-voices"))
+    }
+
     pub fn lumina_config_path() -> Option<PathBuf> {
         Self::config_dir().map(|d| d.join("lumina.toml"))
     }
