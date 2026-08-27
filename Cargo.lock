@@ -460,6 +460,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "aurora-orb"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "config",
+ "cpal",
+ "dirs",
+ "objc2",
+ "serde",
+ "serde_json",
+ "simply-daemon",
+ "simply-daemon-api",
+ "simply-rpc",
+ "tauri",
+ "tauri-build",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

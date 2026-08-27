@@ -5,7 +5,7 @@ pub mod paths;
 pub mod settings;
 pub mod telegram;
 
-pub use aurora::AuroraConfig;
+pub use aurora::{AudioConfig, AuroraConfig, OrbConfig};
 pub use crypto::{decrypt_string, encrypt_string};
 pub use lumina::{LuminaConfig, VoiceConfig};
 pub use paths::PathManager;
