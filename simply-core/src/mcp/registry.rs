@@ -261,6 +261,10 @@ impl McpRegistry {
 const INITIAL_BACKOFF_MS: u64 = 1000;
 const MAX_BACKOFF_MS: u64 = 60000;
 const BACKOFF_MULTIPLIER: f64 = 2.0;
+/// Give up on a server after this many failed connection attempts (~2.5 min
+/// with the backoff above) instead of retrying forever. It stays disabled
+/// until reconnected manually or the daemon restarts.
+const MAX_CONNECT_ATTEMPTS: u32 = 8;
 
 /// Spawn a background retry task for connecting to an MCP server.
 ///
@@ -316,9 +320,21 @@ pub fn spawn_retry_task(
                             .unwrap_or(false)
                     };
 
-                    if !should_retry {
+                    if !should_retry || attempt >= MAX_CONNECT_ATTEMPTS {
+                        if should_retry {
+                            tracing::warn!(
+                                "MCP server '{}' auto-disabled after {} failed connection attempts",
+                                server_id, attempt
+                            );
+                        }
                         let mut reg = registry.lock().await;
-                        let status = ServerStatus::RetryStopped { last_error: e.to_string() };
+                        let status = ServerStatus::RetryStopped {
+                            last_error: if should_retry {
+                                format!("auto-disabled after {attempt} failed attempts: {e}")
+                            } else {
+                                e.to_string()
+                            },
+                        };
                         reg.set_status(&server_id, status.clone());
                         reg.remove_retry_token(&server_id);
                         if let Some(ref cb) = on_status_change {
