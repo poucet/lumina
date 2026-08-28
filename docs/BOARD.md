@@ -1,5 +1,12 @@
 # BOARD — live operational state
 
+## Quota handoff (2026-08-28 — Claude Code quota near exhaustion for days)
+
+State for the next session (human, pi, or future Claude):
+1. simply-terminal LANDED (4c1ff7b3) + aurora wiring (c5acbf6b, compile-unverified 3-liner) + lumina wiring riding uncommitted with Chris's in-flight lumina changes. Chris: `cargo check -p aurora --bins` verifies the wiring; `cargo build -p simply-terminal` puts `simply-term` next to the aurora binary.
+2. mcp-retry-race + embeddings-pure-rust subagents were mid-flight at handoff — if their work sits uncommitted on disk (registry.rs rework; new candle embed provider in simply-core/llm), validate with `cargo check -p simply-core` / `-p llm -p simply-daemon` and commit per their BOARD rows; if absent, the rows below are ready-to-run specs. Both are pi-able: tight file scope, spec in the row, acceptance = cargo check clean (write tests first per flux supervisor protocol if delegating).
+3. Recovery per docs/OPERATIONAL.md: read it + this board; `jj log` shows every landed chain.
+
 ## In-flight
 
 | Status | Date       | Track                | Description |
