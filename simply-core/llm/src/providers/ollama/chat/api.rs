@@ -246,10 +246,21 @@ pub(crate) struct OllamaRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) tools: Option<Vec<OllamaTool>>,
+
+    /// How long Ollama keeps the model loaded after this request (duration
+    /// string like "30m", or "-1" for indefinitely). Unset = Ollama's own
+    /// default (5m), after which the next turn pays a full cold load.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) keep_alive: Option<String>,
 }
 
 impl OllamaRequest {
-    pub(crate) fn from_chat_request(model_name: &str, value: &ChatRequest, stream: bool) -> Self {
+    pub(crate) fn from_chat_request(
+        model_name: &str,
+        value: &ChatRequest,
+        stream: bool,
+        keep_alive: Option<String>,
+    ) -> Self {
         let ollama_messages: Vec<_> = value.messages.iter().map(|msg| msg.into()).collect();
 
         let tools = value
@@ -262,6 +273,7 @@ impl OllamaRequest {
             messages: ollama_messages,
             stream: Some(stream),
             tools,
+            keep_alive,
         }
     }
 }
@@ -309,6 +321,7 @@ mod tests {
             messages,
             stream: None,
             tools: None,
+            keep_alive: None,
         };
         let json = serde_json::to_string(&request).unwrap();
         assert_eq!(
@@ -336,6 +349,7 @@ mod tests {
             messages,
             stream: Some(false),
             tools: None,
+            keep_alive: None,
         };
         let json = serde_json::to_string(&request).unwrap();
         assert_eq!(

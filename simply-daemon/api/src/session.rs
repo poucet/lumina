@@ -22,6 +22,16 @@ pub struct CreateSessionOptions {
     pub model_id: Option<String>,
     #[serde(default)]
     pub seed: Vec<SeedMessage>,
+    /// Restrict the session's tools to these exact names; `None` (default)
+    /// exposes every registered tool. Names follow the daemon's REST tool
+    /// naming — `__`-separated where RPC method names use dots (e.g.
+    /// `aurora.switch_model` is `aurora__switch_model`). Large tool sets
+    /// dominate prompt-eval time on local models, so latency-sensitive
+    /// clients should pass a lean set — e.g. a voice agent might use
+    /// `["aurora__switch_model", "aurora__list_models",
+    /// "aurora__current_model"]` plus its memory tools.
+    #[serde(default)]
+    pub tool_filter: Option<Vec<String>>,
 }
 
 /// Information about a session.

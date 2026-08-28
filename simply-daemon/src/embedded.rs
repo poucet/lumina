@@ -262,6 +262,13 @@ impl<S: StorageTypes> SessionApi for EmbeddedDaemon<S>
         // origin metadata (e.g. discord.guild_id) and augments with any
         // stored OAuth tokens for the user.
         let tools: Arc<dyn ToolService> = self.tools.for_ctx(ctx.clone()).await;
+        // Optionally restrict to the caller's allow-list (exact REST tool
+        // names, `__`-separated) — lean tool sets cut local-model prompt-eval
+        // time dramatically.
+        let tools: Arc<dyn ToolService> = match options.tool_filter {
+            Some(filter) => Arc::new(FilteredToolService::new(tools, filter)),
+            None => tools,
+        };
         let entity_resolver: Arc<dyn EntityResolver> = Arc::new(StoreEntityResolver::new(
             self.stores.entity(),
             self.stores.text(),
@@ -452,5 +459,47 @@ impl<S: StorageTypes> Daemon for EmbeddedDaemon<S>
         self.tools.register(provider).await;
         tracing::info!(count, "client tools registered (embedded, direct)");
         Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tool filtering
+// ---------------------------------------------------------------------------
+
+/// Restricts a [`ToolService`] to an allow-list of exact tool names
+/// (daemon REST naming: RPC dots become `__`, e.g. `aurora__switch_model`).
+/// Filtered-out tools are hidden from `get_definitions()` and rejected by
+/// `call_tool()`.
+struct FilteredToolService {
+    inner: Arc<dyn ToolService>,
+    allow: std::collections::HashSet<String>,
+}
+
+impl FilteredToolService {
+    fn new(inner: Arc<dyn ToolService>, allow: Vec<String>) -> Self {
+        Self { inner, allow: allow.into_iter().collect() }
+    }
+}
+
+#[async_trait]
+impl ToolService for FilteredToolService {
+    async fn get_definitions(&self) -> Vec<llm::ToolDefinition> {
+        self.inner
+            .get_definitions()
+            .await
+            .into_iter()
+            .filter(|d| self.allow.contains(&d.name))
+            .collect()
+    }
+
+    async fn call_tool(
+        &self,
+        name: &str,
+        arguments: serde_json::Value,
+    ) -> anyhow::Result<Vec<llm::ToolResultContent>> {
+        if !self.allow.contains(name) {
+            anyhow::bail!("tool '{name}' is not in this session's tool_filter");
+        }
+        self.inner.call_tool(name, arguments).await
     }
 }
