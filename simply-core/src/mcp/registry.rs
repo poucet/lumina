@@ -12,6 +12,7 @@ use rmcp::{
 };
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -87,6 +88,20 @@ pub enum ServerStatus {
     RetryStopped { last_error: String },
 }
 
+/// Handle to the retry task currently responsible for a server.
+///
+/// `generation` is a process-wide monotonically increasing number allocated
+/// when the task is spawned. `CancellationToken` has no identity comparison,
+/// so the generation is what lets a task prove it still owns this entry:
+/// a task may only mutate shared retry state (status, this entry, the stored
+/// connection) while the registry's stored generation for the server equals
+/// its own. A cancelled-and-replaced task fails that check and must leave
+/// shared state untouched.
+struct RetryTask {
+    token: CancellationToken,
+    generation: u64,
+}
+
 /// Registry managing MCP server connections.
 ///
 /// Auth-agnostic: the caller resolves auth externally and passes
@@ -94,7 +109,7 @@ pub enum ServerStatus {
 pub struct McpRegistry {
     config: McpConfig,
     connections: HashMap<String, ConnectedServer>,
-    retry_tokens: HashMap<String, CancellationToken>,
+    retry_tasks: HashMap<String, RetryTask>,
     server_status: HashMap<String, ServerStatus>,
 }
 
@@ -103,7 +118,7 @@ impl McpRegistry {
         Self {
             config,
             connections: HashMap::new(),
-            retry_tokens: HashMap::new(),
+            retry_tasks: HashMap::new(),
             server_status: HashMap::new(),
         }
     }
@@ -225,27 +240,63 @@ impl McpRegistry {
     }
 
     pub fn is_retry_active(&self, id: &str) -> bool {
-        self.retry_tokens.contains_key(id)
+        self.retry_tasks
+            .get(id)
+            .is_some_and(|t| !t.token.is_cancelled())
     }
 
-    pub fn set_retry_token(&mut self, id: &str, token: CancellationToken) {
-        self.retry_tokens.insert(id.to_string(), token);
+    /// Register a retry task as the current owner for `id`.
+    ///
+    /// Installs the entry only if it is newer than whatever is stored
+    /// (generations are monotonically increasing, so a stale task that lost
+    /// the race to a replacement cannot reclaim ownership). Returns whether
+    /// the task is now the owner; on `false` the caller must exit without
+    /// touching any shared state.
+    fn register_retry_task(&mut self, id: &str, token: CancellationToken, generation: u64) -> bool {
+        if let Some(existing) = self.retry_tasks.get(id) {
+            if existing.generation >= generation {
+                return false;
+            }
+        }
+        self.retry_tasks
+            .insert(id.to_string(), RetryTask { token, generation });
+        true
     }
 
-    pub fn cancel_retry(&mut self, id: &str) {
-        if let Some(token) = self.retry_tokens.remove(id) {
-            token.cancel();
+    /// Whether the retry task with `generation` still owns the entry for `id`.
+    ///
+    /// Ownership rule: a retry task may only mutate shared state (status,
+    /// retry entry, stored connection) while this returns true. Once it has
+    /// been superseded by a newer task — or its entry is gone — it must not
+    /// touch anything.
+    fn retry_task_is_current(&self, id: &str, generation: u64) -> bool {
+        self.retry_tasks
+            .get(id)
+            .is_some_and(|t| t.generation == generation)
+    }
+
+    /// Remove the retry entry for `id`, but only if `generation` still owns it.
+    fn clear_retry_task(&mut self, id: &str, generation: u64) {
+        if self.retry_task_is_current(id, generation) {
+            self.retry_tasks.remove(id);
         }
     }
 
-    pub fn remove_retry_token(&mut self, id: &str) {
-        self.retry_tokens.remove(id);
+    /// Cancel the retry task for `id`, if any.
+    ///
+    /// The entry is left in place (cancelled): the owning task performs its
+    /// own generation-guarded cleanup, and a replacement task spawned right
+    /// after simply supersedes the entry with a newer generation.
+    pub fn cancel_retry(&mut self, id: &str) {
+        if let Some(task) = self.retry_tasks.get(id) {
+            task.token.cancel();
+        }
     }
 
     pub fn store_connection(&mut self, id: &str, server: ConnectedServer) {
         self.connections.insert(id.to_string(), server);
         self.server_status.insert(id.to_string(), ServerStatus::Connected);
-        self.retry_tokens.remove(id);
+        self.retry_tasks.remove(id);
     }
 
     pub fn auto_connect_servers(&self) -> Vec<(String, ServerConfig)> {
@@ -266,11 +317,24 @@ const BACKOFF_MULTIPLIER: f64 = 2.0;
 /// until reconnected manually or the daemon restarts.
 const MAX_CONNECT_ATTEMPTS: u32 = 8;
 
+/// Allocates ownership generations for retry tasks. Monotonic and
+/// process-wide, so of any two tasks racing for the same server the one
+/// spawned later always wins registration.
+static NEXT_RETRY_GENERATION: AtomicU64 = AtomicU64::new(1);
+
 /// Spawn a background retry task for connecting to an MCP server.
 ///
 /// `bearer_token` — resolved externally by the daemon before spawning.
 /// If the token expires and a fresh one is needed, cancel this task and
 /// spawn a new one with updated credentials.
+///
+/// Ownership rule: each task is allocated a generation number and registers
+/// itself (token + generation) in the registry as its first action. It may
+/// mutate shared state — server status, its retry entry, the stored
+/// connection — only while the registry still holds its generation for this
+/// server. A task that has been cancelled and replaced (the token-refresh
+/// flow) fails that check and exits without touching anything, so it can
+/// never clobber the replacement task's registration or status.
 pub fn spawn_retry_task(
     registry: Arc<Mutex<McpRegistry>>,
     server_id: String,
@@ -280,16 +344,51 @@ pub fn spawn_retry_task(
 ) -> CancellationToken {
     let token = CancellationToken::new();
     let cancel_token = token.clone();
+    let generation = NEXT_RETRY_GENERATION.fetch_add(1, Ordering::Relaxed);
 
     tokio::spawn(async move {
         let mut attempt: u32 = 0;
         let mut backoff_ms = INITIAL_BACKOFF_MS;
+
+        // Take ownership of this server's retry slot; bail if we were
+        // cancelled before starting or a newer task already owns it.
+        {
+            let mut reg = registry.lock().await;
+            if cancel_token.is_cancelled()
+                || !reg.register_retry_task(&server_id, cancel_token.clone(), generation)
+            {
+                return;
+            }
+        }
+
+        // Guarded cleanup for cancellation: only records RetryStopped and
+        // frees the retry entry if this task still owns it.
+        let finish_cancelled = |reg: &mut McpRegistry| {
+            if !reg.retry_task_is_current(&server_id, generation) {
+                return;
+            }
+            let status = ServerStatus::RetryStopped {
+                last_error: "Retry cancelled".to_string(),
+            };
+            reg.set_status(&server_id, status.clone());
+            reg.clear_retry_task(&server_id, generation);
+            if let Some(ref cb) = on_status_change {
+                cb(&server_id, &status);
+            }
+        };
 
         loop {
             attempt += 1;
 
             {
                 let mut reg = registry.lock().await;
+                if !reg.retry_task_is_current(&server_id, generation) {
+                    return; // superseded by a newer task
+                }
+                if cancel_token.is_cancelled() {
+                    finish_cancelled(&mut reg);
+                    return;
+                }
                 reg.set_status(&server_id, ServerStatus::Retrying { attempt });
                 if let Some(ref cb) = on_status_change {
                     cb(&server_id, &ServerStatus::Retrying { attempt });
@@ -298,12 +397,29 @@ pub fn spawn_retry_task(
 
             match McpRegistry::connect_to_server(&config, bearer_token.as_deref()).await {
                 Ok(connected) => {
-                    let mut reg = registry.lock().await;
-                    reg.store_connection(&server_id, connected);
-                    if let Some(ref cb) = on_status_change {
-                        cb(&server_id, &ServerStatus::Connected);
+                    {
+                        let mut reg = registry.lock().await;
+                        if reg.retry_task_is_current(&server_id, generation) {
+                            if cancel_token.is_cancelled() {
+                                // Cancelled mid-connect (e.g. credentials were
+                                // refreshed): don't keep a possibly-stale
+                                // connection.
+                                finish_cancelled(&mut reg);
+                            } else {
+                                reg.store_connection(&server_id, connected);
+                                if let Some(ref cb) = on_status_change {
+                                    cb(&server_id, &ServerStatus::Connected);
+                                }
+                                tracing::info!(
+                                    "MCP server '{}' connected after {} attempts",
+                                    server_id, attempt
+                                );
+                                return;
+                            }
+                        }
                     }
-                    tracing::info!("MCP server '{}' connected after {} attempts", server_id, attempt);
+                    // Superseded or cancelled: discard the connection.
+                    let _ = connected.disconnect().await;
                     return;
                 }
                 Err(e) => {
@@ -328,6 +444,9 @@ pub fn spawn_retry_task(
                             );
                         }
                         let mut reg = registry.lock().await;
+                        if !reg.retry_task_is_current(&server_id, generation) {
+                            return; // superseded by a newer task
+                        }
                         let status = ServerStatus::RetryStopped {
                             last_error: if should_retry {
                                 format!("auto-disabled after {attempt} failed attempts: {e}")
@@ -336,7 +455,7 @@ pub fn spawn_retry_task(
                             },
                         };
                         reg.set_status(&server_id, status.clone());
-                        reg.remove_retry_token(&server_id);
+                        reg.clear_retry_task(&server_id, generation);
                         if let Some(ref cb) = on_status_change {
                             cb(&server_id, &status);
                         }
@@ -346,14 +465,7 @@ pub fn spawn_retry_task(
                     tokio::select! {
                         _ = cancel_token.cancelled() => {
                             let mut reg = registry.lock().await;
-                            let status = ServerStatus::RetryStopped {
-                                last_error: "Retry cancelled".to_string(),
-                            };
-                            reg.set_status(&server_id, status.clone());
-                            reg.remove_retry_token(&server_id);
-                            if let Some(ref cb) = on_status_change {
-                                cb(&server_id, &status);
-                            }
+                            finish_cancelled(&mut reg);
                             return;
                         }
                         _ = tokio::time::sleep(Duration::from_millis(backoff_ms)) => {
@@ -398,12 +510,9 @@ pub async fn start_auto_connect(
             });
 
         let bearer_token = bearer_tokens.get(&server_id).cloned();
-        let token = spawn_retry_task(Arc::clone(&registry), server_id.clone(), config, bearer_token, cb);
-
-        {
-            let mut reg = registry.lock().await;
-            reg.set_retry_token(&server_id, token);
-        }
+        // The task registers its own cancellation token (with an ownership
+        // generation) in the registry as its first action.
+        let _token = spawn_retry_task(Arc::clone(&registry), server_id.clone(), config, bearer_token, cb);
     }
 
     count
