@@ -12,8 +12,9 @@ State for the next session (human, pi, or future Claude):
 | Status | Date       | Track                | Description |
 |--------|------------|----------------------|-------------|
 | 🔄     | 2026-08-28 | simply-terminal      | Subagent, fence simply-terminal/** (new crate) + root Cargo.toml + lumina wiring (+ config/src/paths.rs additive helper): pure-Rust PTY TerminalSkill (portable-pty, NO tmux) — agent drives a claude/pi session while the human shares it via `simply-term attach <name>` (per-session unix socket, raw-mode bridge, SIGWINCH resize); start/send/read/list/stop, Terminal.app auto-attach, ANSI-stripped reads. Sessions die with host process (accepted vs tmux). Optional feature for lumina; aurora wiring follows as a separate pass |
-| 🔄     | 2026-08-28 | mcp-retry-race       | Subagent, fence simply-core/src/mcp/registry.rs: owner-checked cleanup (generation/token identity guard) so a cancelled-and-replaced retry task can't clobber its successor's token/status |
-| 🔄     | 2026-08-28 | embeddings-pure-rust | Subagent, fence simply-core/llm/** + simply-daemon/{builder.rs,Cargo.toml}: candle BGE-small embedding provider replacing fastembed/onnxruntime (last C++ dylib out). Constraint: reproduce fastembed's bge pipeline (CLS pooling + L2 norm, prefixes) so stored 384-dim vectors stay valid; else re-embed |
+| ✅     | 2026-08-28 | mcp-retry-race       | LANDED (ff356c0a): generation-guarded retry-task ownership, all cleanup sites owner-checked incl. per-iteration status and success path; bonus fix — retry tokens now self-register so cancel_retry actually reaches them |
+| ✅     | 2026-08-28 | embeddings-pure-rust | LANDED (1ce08bf9): candle BERT bge-small replaces fastembed; fastembed/ort/onnxruntime have ZERO lockfile entries — no C++ dylibs left in the process. Runtime caveat: output parity with fastembed not runtime-verified — spot-check RAG recall; re-embed corpus if similarity degrades |
+| ✅     | 2026-08-28 | simply-terminal-verify | VERIFIED by pi.dev (qwen3.6 local, headless, zero Claude quota): all four commands PASS, zero fixes needed, tree untouched (diff-verified). simply-term built at target/debug/. simply-terminal is DONE — remaining verification is Chris's runtime trial ("Aurora, start a claude session in <repo>") |
 
 ## Queue
 
