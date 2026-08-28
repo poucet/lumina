@@ -1,20 +1,14 @@
 # BOARD — live operational state
 
-## Quota handoff (2026-08-28 — Claude Code quota near exhaustion for days)
-
-State for the next session (human, pi, or future Claude):
-1. simply-terminal LANDED (4c1ff7b3) + aurora wiring (c5acbf6b, compile-unverified 3-liner) + lumina wiring riding uncommitted with Chris's in-flight lumina changes. Chris: `cargo check -p aurora --bins` verifies the wiring; `cargo build -p simply-terminal` puts `simply-term` next to the aurora binary.
-2. mcp-retry-race + embeddings-pure-rust subagents were mid-flight at handoff — if their work sits uncommitted on disk (registry.rs rework; new candle embed provider in simply-core/llm), validate with `cargo check -p simply-core` / `-p llm -p simply-daemon` and commit per their BOARD rows; if absent, the rows below are ready-to-run specs. Both are pi-able: tight file scope, spec in the row, acceptance = cargo check clean (write tests first per flux supervisor protocol if delegating).
-3. Recovery per docs/OPERATIONAL.md: read it + this board; `jj log` shows every landed chain.
-
 ## In-flight
 
-| Status | Date       | Track                | Description |
-|--------|------------|----------------------|-------------|
-| 🔄     | 2026-08-28 | simply-terminal      | Subagent, fence simply-terminal/** (new crate) + root Cargo.toml + lumina wiring (+ config/src/paths.rs additive helper): pure-Rust PTY TerminalSkill (portable-pty, NO tmux) — agent drives a claude/pi session while the human shares it via `simply-term attach <name>` (per-session unix socket, raw-mode bridge, SIGWINCH resize); start/send/read/list/stop, Terminal.app auto-attach, ANSI-stripped reads. Sessions die with host process (accepted vs tmux). Optional feature for lumina; aurora wiring follows as a separate pass |
-| ✅     | 2026-08-28 | mcp-retry-race       | LANDED (ff356c0a): generation-guarded retry-task ownership, all cleanup sites owner-checked incl. per-iteration status and success path; bonus fix — retry tokens now self-register so cancel_retry actually reaches them |
-| ✅     | 2026-08-28 | embeddings-pure-rust | LANDED (1ce08bf9): candle BERT bge-small replaces fastembed; fastembed/ort/onnxruntime have ZERO lockfile entries — no C++ dylibs left in the process. Runtime caveat: output parity with fastembed not runtime-verified — spot-check RAG recall; re-embed corpus if similarity degrades |
-| ✅     | 2026-08-28 | simply-terminal-verify | VERIFIED by pi.dev (qwen3.6 local, headless, zero Claude quota): all four commands PASS, zero fixes needed, tree untouched (diff-verified). simply-term built at target/debug/. simply-terminal is DONE — remaining verification is Chris's runtime trial ("Aurora, start a claude session in <repo>") |
+(none — all tracks landed 2026-08-28; quota wound down cleanly)
+
+Awaiting Chris (runtime trials, no Claude needed): reinstall dmg v2 if the
+installed copy predates 986a49dd; `cargo check -p aurora --bins` after
+committing the in-flight lumina changes (they carry the lumina terminal
+wiring + tool_filter one-liners); trial "Aurora, start a claude session in
+<repo>"; spot-check RAG recall after the embeddings swap (re-embed if off).
 
 ## Queue
 
@@ -32,6 +26,9 @@ State for the next session (human, pi, or future Claude):
 
 | Track                    | Landed |
 |--------------------------|--------|
+| simply-terminal          | 4c1ff7b3 crate (pure-Rust PTY TerminalSkill + simply-term attach client) + c5acbf6b aurora wiring; lumina wiring rides with Chris's in-flight changes. pi-verified: all checks PASS, zero fixes (simply-term at target/debug/) |
+| embeddings-pure-rust     | 1ce08bf9 — candle bge-small replaces fastembed; onnxruntime at zero lockfile entries. Runtime parity unverified: spot-check RAG, re-embed if off |
+| mcp-retry-race           | ff356c0a — generation-guarded retry-task ownership; bonus: retry tokens now self-register so cancel_retry works |
 | orb-context-reset        | 6f895479 — reset_session serialized with turns; /reset CLI; "New Conversation" tray item |
 | tool_filter-fallout      | 0cfb6fd3 — telegram-bot initializer fix (lumina one-liners ride with Chris's in-flight changes) |
 | aurora-dmg (v2)          | 986a49dd — real ad-hoc+runtime signing + audio-input entitlement (v1 install was mic-blocked); bundled logs → ~/.local/share/noema/logs/aurora-orb.log; Aurora icon; ripple redesign. CLOSED — reinstall from new dmg is the only user action |
