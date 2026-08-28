@@ -416,6 +416,7 @@ async fn process_chat(
             system_prompt: Some(system_prompt),
             model_id,
             seed,
+            tool_filter: None,
         },
     )
     .await?;
