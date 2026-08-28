@@ -9,7 +9,7 @@ architecture_updated: 2026-04-18
 
 **Problem:** Lumina (Discord bot) and Noema (desktop AI assistant) needed the same capabilities — LLM orchestration, MCP tools, voice, storage — but were separate codebases. Unifying them into a shared daemon eliminates duplication and lets all clients share tools, knowledge, and automation.
 
-**Current focus:** Events & Intents phase — reactive event bus, scheduled actions, LLM-compiled intents. Content & RAG, unified tool dispatch, and admin UI are complete.
+**Current focus:** Aurora — the macOS floating-orb voice agent — shipped 2026-08-28 (local STT/TTS, installable dmg; see CHANGELOG). Now: simply-terminal (agent-driven claude/pi sessions shared with the human via PTY), pure-Rust embeddings (evicting onnxruntime), then back to Events & Intents. Content & RAG, unified tool dispatch, and admin UI are complete.
 
 **Notes:** The project uses `jj` (Jujutsu) for version control, not git directly. Never run `cargo build/test` — the user handles that. Skills (like GDocsSkill) are registered by clients (Lumina), not hardcoded in the daemon.
 
@@ -46,7 +46,10 @@ noema/
 │   ├── src/net/           # REST + WS server, auth, admin API
 │   └── admin/             # Astro + Svelte 5 web UI
 ├── simply-rpc/            # RPC framework, #[rpc_service] macro
-├── simply-voice/          # STT/TTS providers (Voxtral, Whisper, ElevenLabs, Gemini)
+├── simply-voice/          # STT/TTS providers (Pocket TTS + Kyutai STT local, Voxtral, Whisper, ElevenLabs, Gemini)
+├── aurora/                # Voice-agent pipeline lib + trial CLI + aurora-voice design tool
+├── aurora-orb/            # macOS floating-dot Tauri app (ships as Aurora.app/dmg)
+├── simply-terminal/       # PTY skill: agent-driven claude/pi sessions shared with the human (in progress)
 ├── lumina/                # Discord bot (serenity + songbird)
 ├── telegram-bot/          # Telegram bot (long polling + daemon sessions)
 ├── mcp-gdocs/             # Google Docs skill + MCP server

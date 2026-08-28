@@ -129,6 +129,18 @@ impl PathManager {
         Self::data_dir().map(|d| d.join("telegram"))
     }
 
+    /// Directory for runtime IPC endpoints (unix sockets etc.). Contents are
+    /// only meaningful while the owning process is alive.
+    pub fn runtime_dir() -> Option<PathBuf> {
+        Self::data_dir().map(|d| d.join("runtime"))
+    }
+
+    /// Unix socket for a shared terminal session (`simply-terminal` skill;
+    /// `session` is the full sanitized session name, e.g. `simply-myproj`).
+    pub fn term_socket_path(session: &str) -> Option<PathBuf> {
+        Self::runtime_dir().map(|d| d.join(format!("{session}.sock")))
+    }
+
     pub fn mcp_config_path() -> Option<PathBuf> {
         Self::config_dir().map(|d| d.join("mcp.toml"))
     }

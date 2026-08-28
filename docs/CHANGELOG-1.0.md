@@ -17,6 +17,42 @@ See [v1.0/ROADMAP.md](v1.0/ROADMAP.md) and [v1.0/TASKS.md](v1.0/TASKS.md):
 
 ---
 
+## Aurora — local voice agent + floating orb (2026-08-27/28)
+
+New always-on macOS voice agent on the shared daemon, fully offline-capable
+voice, shipped as an installable app in a two-day arc.
+
+- **`aurora` crate** — `VoicePipeline` library (mic → Kyutai STT → daemon
+  session → pocket-tts → speaker) with two thin frontends: a trial CLI
+  (stderr word trace, `/model /devices /reset` escape hatches that bypass the
+  LLM) and the orb
+- **`aurora-orb` crate** — Tauri v2 floating dot: frosted-glass vibrancy
+  (teal/magenta/orange states: ripple listening, comet thinking, waveform
+  speaking; hearing overlay + queued badge), NSStatusWindowLevel all-Spaces
+  hover, tray (model switcher, device pickers, New Conversation, shape),
+  bundled as ad-hoc-signed `Aurora.app` + dmg with mic entitlement
+- **Local voice in `simply-voice`** — `PocketTtsProvider` (candle port,
+  Metal, voice cloning: wav → .safetensors embedding) and `KyutaiSttProvider`
+  (1B streaming STT, word partials, model-internal end-of-turn VAD);
+  C++ sentencepiece replaced by a pure-Rust decoder after a protobuf symbol
+  clash with onnxruntime aborted at startup
+- **`aurora-voice` CLI** — voice design: audition stock voices, ElevenLabs
+  design → local clone, record/preview/import; Aurora runs on a custom
+  `aurora.safetensors` voice
+- **Conversation model** — utterance queuing while the agent thinks;
+  `echo_gate = gate|duplex` with barge-in; sentence-pipelined TTS (first
+  audio after first sentence) + per-turn timing logs; spoken-output prompt
+  hardening + TTS markdown sanitizer
+- **Daemon additions** — `CreateSessionOptions.tool_filter` allow-list
+  (local-model prompt slimming), Ollama `keep_alive` (kills recurring cold
+  loads), MCP auto-disable after 8 failed connects, model-list warning
+  hygiene
+- **Config over env** — everything in `aurora.toml` ([stt], [tts], [audio],
+  [orb], [agent]); HF weights fetched via the standard token file, no env
+  vars anywhere
+
+---
+
 ## Unified Frontend & Tool Architecture (2026-04-18)
 
 Major architecture overhaul consolidating on a single frontend and unified tool dispatch.
