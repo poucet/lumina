@@ -255,6 +255,7 @@ impl VoiceManager {
                 system_prompt: Some(VOICE_LISTEN_SYSTEM_PROMPT.to_string()),
                 model_id: None,
                 seed,
+                tool_filter: None,
             },
         ).await?;
         tracing::info!(session_id = %session.id(), guild_id = %guild_id, "voice listen session created");

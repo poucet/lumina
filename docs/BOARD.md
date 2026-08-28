@@ -2,7 +2,8 @@
 
 ## In-flight
 
-(none — all tracks landed 2026-08-28; quota wound down cleanly)
+| Status | Date       | Track            | Description |
+|--------|------------|------------------|-------------|
 
 Awaiting Chris (runtime trials, no Claude needed): reinstall dmg v2 if the
 installed copy predates 986a49dd; `cargo check -p aurora --bins` after
@@ -26,6 +27,10 @@ wiring + tool_filter one-liners); trial "Aurora, start a claude session in
 
 | Track                    | Landed |
 |--------------------------|--------|
+| terminal-standalone      | 5aaa194a self-install + shell/simply-term.zsh + TUI fidelity (SIGWINCH, real size, repaint-on-attach, clean detach, size authority) · d29aa34d crate split: simply-terminal depends on nothing in this repo; adapter lives in simply-terminal-skill |
+| terminal-persistence     | 6584a5f2 detached hosts + standalone crate + idle notifications · 013b29b7 simply-term shipped as an Aurora.app sidecar and to ~/.local/bin (`cargo aurora install`) · bc87d0b6 no session state on disk (host answers INFO; socket is only an address; conservative pruning) |
+| aurora-overlay           | bc90eef2 — aurora__show_panel: markdown/image panel window beside the orb (vibrancy-matched, unfocused, hide-not-destroy, XSS-safe dep-free renderer, images data-URI'd in Rust); CLI prints instead; system prompt now routes markdown to the panel |
+| terminal-discovery       | 0d3df2c9 — layered binary resolution (PATH walk → install dirs → login-shell PATH, cached) fixes claude/pi "not installed" in Finder-launched Aurora.app; PTY child gets a usable PATH too. Verified under simulated launchd env |
 | simply-terminal          | 4c1ff7b3 crate (pure-Rust PTY TerminalSkill + simply-term attach client) + c5acbf6b aurora wiring; lumina wiring rides with Chris's in-flight changes. pi-verified: all checks PASS, zero fixes (simply-term at target/debug/) |
 | embeddings-pure-rust     | 1ce08bf9 — candle bge-small replaces fastembed; onnxruntime at zero lockfile entries. Runtime parity unverified: spot-check RAG, re-embed if off |
 | mcp-retry-race           | ff356c0a — generation-guarded retry-task ownership; bonus: retry tokens now self-register so cancel_retry works |

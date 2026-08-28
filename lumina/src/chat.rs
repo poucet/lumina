@@ -160,6 +160,7 @@ async fn process_chat(lx: &LuminaContext, msg: &Message) -> anyhow::Result<()> {
             system_prompt: Some(system_prompt),
             model_id,
             seed: history,
+            tool_filter: None,
         },
     )
     .await?;
