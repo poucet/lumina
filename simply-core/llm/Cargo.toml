@@ -18,11 +18,26 @@ schemars = { workspace = true }
 config = { workspace = true }
 chrono = { workspace = true }
 ts-rs = { version = "10", features = ["serde-compat", "serde-json-impl"], optional = true }
-fastembed = { version = "4", optional = true }
+
+# Pure-Rust local embedding stack (no onnxruntime / C++ dylibs).
+# candle versions kept aligned with simply-voice.
+candle = { version = "0.9.1", package = "candle-core", optional = true }
+candle-nn = { version = "0.9.1", optional = true }
+candle-transformers = { version = "0.9.1", optional = true }
+# default-features off: drops `onig` (C) and esaxx `cpp`; fancy-regex is the
+# pure-Rust regex backend.
+tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"], optional = true }
+hf-hub = { version = "0.4.3", optional = true }
 
 [features]
 default = ["local-embedding"]
-local-embedding = ["dep:fastembed"]
+local-embedding = [
+    "dep:candle",
+    "dep:candle-nn",
+    "dep:candle-transformers",
+    "dep:tokenizers",
+    "dep:hf-hub",
+]
 ts = ["dep:ts-rs"]
 
 [dev-dependencies]
