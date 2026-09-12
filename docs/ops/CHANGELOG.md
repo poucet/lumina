@@ -1,19 +1,10 @@
-# Simply Platform 1.0 Changelog
+# Changelog
 
-**Status:** In progress
-**Started:** ~February 2026
-**Commits:** 723+
+> What landed, per landing, newest first. Open work: [ROADMAP.md](ROADMAP.md) · live state: [BOARD.md](BOARD.md). What belongs here: @AGENTS.md §2.
+
+## 1.0 — in progress since ~February 2026
 
 Version 1.0 unifies Noema (Rust desktop) and Lumina (Python Discord bot) into a single Rust workspace with a shared daemon hub. Everything talks to `simply-daemon`.
-
----
-
-## What's Next
-
-See [v1.0/ROADMAP.md](v1.0/ROADMAP.md) and [v1.0/TASKS.md](v1.0/TASKS.md):
-1. Events & Intents — event bus, action AST, LLM-compiled intents
-2. Multi-user polish — persistent tokens, role-based access, admin user management
-3. Web Extension & RTC (paused)
 
 ---
 
@@ -50,6 +41,49 @@ voice, shipped as an installable app in a two-day arc.
 - **Config over env** — everything in `aurora.toml` ([stt], [tts], [audio],
   [orb], [agent]); HF weights fetched via the standard token file, no env
   vars anywhere
+
+---
+
+## OAuth persistence + Lumina deploy (2026-06-03/04 · mpnzuuul → xlkuoplq)
+
+- **OAuth tokens survive restarts** — mirrored to `data/tokens.json` (0600), refresh token captured, expiry as wall-clock seconds; expired tokens refresh on read (lyxrqyks, nqxrpwpo)
+- **Lumina server deploy** — Docker + host nginx + web setup wizard (multiple LLM keys, live model fetch, resume, file logs, reset); post-receive auto-deploy hook; Caddyfile removed
+- **Lumina** — `/config` slash command (status channel + AI category), Discord user identity threaded through `/tool call`, `/auth` removed in favour of the real OAuth route (`/auth/mcp/google`), survives Discord auth failure; gdocs `/google import` autocomplete substring-matches titles server-side
+
+---
+
+## Events & Intents — Stage 1 (2026-06-01 · ntppqpqq → yrkomnpq)
+
+- **Event bus** in `simply-core` — pub/sub with typed event payloads
+- **Timer event source** — cron, interval, one-shot, fuzzy time expressions
+- **Intent documents** in UCM with `type: intent` frontmatter
+- **Telegram bot** skeleton crate (xnwxrvxo)
+
+---
+
+## Vault-Backed Markdown (2026-05-04 · zxzwmkwk → oulllowr)
+
+Human-authored `document::*` bodies become normal Markdown files in a configurable vault; SQLite stays canonical for identity, relations, access policy, runtime state, embeddings and indexes. **Design:** [VAULT_BACKED_MARKDOWN.md](../designs/VAULT_BACKED_MARKDOWN.md).
+
+- **Storage** — SQLite migration runner (`schema_migrations`), configurable `vault_root`, `vault_files` / `vault_conflicts` projection tables
+- **Markdown** — frontmatter parser + serializer (opt-in identity fields `id`/`kind`/`origin`/`privacy`, user metadata preserved), asset-reference extraction
+- **Reconciliation** — scanner-first: same-id and body-hash moves, missing files (recoverable status), duplicate/changed-id conflicts, unmanaged files; projection-first or frontmatter identity modes; `.noema/vault-index.json` sidecar snapshot
+- **Read/write path** — export of `document::tabbed` trees and flat documents; content resolver reads vault files and falls back to `content_blocks`; atomic temp-file writes with stale-hash checks; external edits become new `content_blocks` snapshots and re-embed; `entity_assets` rebuilt from references
+- **Watcher + conflicts** — debounced polling watcher; conflict-resolution API (restore id / fork / accept path / unmanage / bind) with admin and Noema `VaultControls`
+- **Hardening** — centralized entity access policy and delete lifecycle, `structure::contained_in` invariants, batched entity summaries, SQLite WAL with split read/write handles
+
+---
+
+## UCM Unification (2026-04-21 · wkllqyzy → xuzlnzxz)
+
+Documents, tabs and revisions collapse onto `entities` + `entity_relations` + `content_blocks`; only the import skill knows what a Google Doc becomes. **Design:** [UNIFIED_CONTENT_MODEL.md](../designs/UNIFIED_CONTENT_MODEL.md).
+
+- **Schema** — `entities.content_block_id` + `origin`, `entity_relations.position`, `entity_assets`; namespaced `EntityType` (`document::*`, `system::*`) and `RelationType` (`structure::contained_in`, `reference::to`, …); slug/is_archived dropped
+- **Coordinator** — generic entity + content + relation primitives (create/update content, ordered children, `move_entity`, cascade delete, asset GC)
+- **`EntityApi`** — graph-edge API with lazy content and `EntitySummary` capabilities, batch `get_entities`; replaces `DocumentApi` — `DocumentApi`, `DocumentStore`, `document_resolver` and the `documents`/`document_tabs`/`document_revisions` tables deleted; `DocumentRef` → `EntityRef` over `EntityResolver`
+- **UI** — admin entity-first pages (`EntitiesPage`, type-change support), shared `@simply/entity-ui` package; Noema documents panel + read-only view
+- **RAG pivot** — `VectorChunk` keyed on `content_block_id` with `entity_kind` and `EntityFilter`; Lumina dedupes hits by block
+- **RPC** — snake_case wire keys
 
 ---
 
@@ -91,11 +125,11 @@ Consolidated and cleaned up v1.0 documentation after completing Foundation, Lumi
 
 - Retired `TODO.md` (manual test checklist) and `JOURNAL.md` (testing notes)
 - Removed `phases/` directory — all 11 files across 6 subdirectories (foundation, lumina, voice, content, events, rtc)
-- Consolidated into single [TASKS.md](v1.0/TASKS.md) with next phase tasks across 4 workstreams
-- Rewrote [GOAL.md](v1.0/GOAL.md) and [ROADMAP.md](v1.0/ROADMAP.md) to reflect current state
-- Moved [VOICE.md](designs/VOICE.md) from proposals to designs (implemented)
-- Moved [AGENTIC.md](designs/proposals/AGENTIC.md) and [ACTIONS.md](designs/proposals/ACTIONS.md) into proposals (not yet built)
-- Folded [TOOL_APPROVAL.md](designs/proposals/TOOL_APPROVAL.md) and [UCM_SERVICE.md](designs/proposals/UCM_SERVICE.md) into task plan
+- Consolidated into single `v1.0/TASKS.md` with next phase tasks across 4 workstreams
+- Rewrote `GOAL.md` and `ROADMAP.md` to reflect current state
+- Moved [VOICE.md](../designs/VOICE.md) from proposals to designs (implemented)
+- Moved [AGENTIC.md](../designs/proposals/AGENTIC.md) and [ACTIONS.md](../designs/proposals/ACTIONS.md) into proposals (not yet built)
+- Folded [TOOL_APPROVAL.md](../designs/proposals/TOOL_APPROVAL.md) and [UCM_SERVICE.md](../designs/proposals/UCM_SERVICE.md) into task plan
 - Fleshed out next phase: Content & RAG, Events & Intents, RTC (Google Meet), Multi-user & OAuth
 
 ---
@@ -308,8 +342,8 @@ Before the v1.0 restructure, significant work was done on Noema 0.2:
 
 ## Design Documents
 
-- [designs/ARCHITECTURE.md](designs/ARCHITECTURE.md) — platform architecture
-- [designs/CORE_SERVICE.md](designs/CORE_SERVICE.md) — daemon protocol (WS, REST, MCP)
-- [designs/VOICE.md](designs/VOICE.md) — voice pipeline architecture
-- [designs/UNIFIED_CONTENT_MODEL.md](designs/UNIFIED_CONTENT_MODEL.md) — UCM storage spec
-- [designs/proposals/](designs/proposals/) — proposals for events, actions, tool approval
+- [designs/ARCHITECTURE.md](../designs/ARCHITECTURE.md) — platform architecture
+- [designs/CORE_SERVICE.md](../designs/CORE_SERVICE.md) — daemon protocol (WS, REST, MCP)
+- [designs/VOICE.md](../designs/VOICE.md) — voice pipeline architecture
+- [designs/UNIFIED_CONTENT_MODEL.md](../designs/UNIFIED_CONTENT_MODEL.md) — UCM storage spec
+- [designs/proposals/](../designs/proposals/) — proposals for events, actions, tool approval

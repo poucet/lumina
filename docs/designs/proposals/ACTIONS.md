@@ -1,6 +1,6 @@
 # Action System — Unified Capability & Composition
 
-**Status:** Proposal — tasks in [v1.0 TASKS.md](../../v1.0/TASKS.md#2-events--intents)
+**Status:** Proposal — tasks under Events & Intents in [ops/ROADMAP.md](../../ops/ROADMAP.md)
 **Version:** 1.1
 **Parent:** [ARCHITECTURE.md](ARCHITECTURE.md)
 **Related:** [AGENTIC.md](AGENTIC.md), [CORE_SERVICE.md](CORE_SERVICE.md)

@@ -1,12 +1,12 @@
 # Decisions
 
-ADR-lite: small-but-binding decisions with their rationale, newest first —
-things too small for a design doc but too important to live only in commit
-messages or conversation. Big designs stay in docs/design/; findings in
-docs/research/. One line of context each; link deeper docs where they exist.
-
-One row, one decision, one date — so a settled question stays settled. Carries
-both a clock and the jj change id (AGENTS.md §2).
+> One row, one decision, one date — newest first; clock and jj change id where known. What belongs here: @AGENTS.md §2.
 
 | When · change id | Decision | Rationale |
 |---|---|---|
+| 2026-05-04 · uptuovsv | **Vault-backed Markdown: normal Markdown files are canonical for human-authored `document::*` bodies; SQLite stays canonical for identity, relations, access policy, conversations, embeddings, runtime state and indexes.** `content_blocks` remain immutable snapshots. Design: [VAULT_BACKED_MARKDOWN.md](../designs/VAULT_BACKED_MARKDOWN.md) | Existing content APIs and RAG migrate without a flag day; files are editable by any tool while the daemon keeps the graph. |
+| 2026-04-21 · uvwkpxvx | **`DocumentStore` is not rewritten onto entities; the old `documents` / `document_tabs` / `document_revisions` tables stay live until `EntityApi` has every caller, then are deleted outright.** | Backing `DocumentStore` onto entities would force it to reach into `TextStore` (a layering violation), since its API returns inlined `content_markdown` while entity-backed storage keeps content in `content_blocks`. Additive coordinator primitives + a parallel `EntityApi` keep daemon, Lumina and Noema running at every commit. |
+| 2026-04-21 · kuyrzzyz | **UCM unification: documents, tabs and revisions collapse onto `entities` + `entity_relations` + `content_blocks`; daemon exposes a generic `EntityApi`; UIs render per entity capability (has content? has `contained_in` children?); only the import skill encodes "a Google Doc becomes a `document::tabbed` with child `document::tab` entities".** Design: [UNIFIED_CONTENT_MODEL.md](../designs/UNIFIED_CONTENT_MODEL.md) | Unlocks directories, knowledge graph, labels and any future composition with no further schema work; resolves CASCADE reliance in the SQLite schema by moving cascade logic into the orchestrator. |
+| 2026-04-21 · oqwqyqom | **Chrome extension is out of v1.0** — a post-v1 platform, not a workstream. | v1.0 scope is the daemon and its existing clients; the extension's only cheap near-term slice ("send this page to Simply") rides on the import path once UCM lands. |
+| 2026-04-18 | **Skills (e.g. `GDocsSkill`) are registered by clients (Lumina), not hardcoded in the daemon.** | The daemon stays a generic hub; the client that needs a capability owns wiring it in. |
+| ~2026-02 | **One Rust workspace for Lumina and Noema: a `simply-daemon` hub over `simply-core`; Lumina becomes a serenity + songbird crate, Noema a Tauri client, both connecting to the daemon.** | Both were converging on the same needs — LLM orchestration, MCP tools, voice pipeline, storage — implemented independently in different languages (Python vs Rust). Unifying lets every client share tools, knowledge and automation. |

@@ -57,25 +57,31 @@ Simply is a unified AI platform where Noema (desktop), Lumina (Discord), and fut
 ## Workspace Structure
 
 ```
-noema/
-├── simply-core/           # Internal library: LLM + MCP + agent + storage traits
+lumina/                    # workspace root
+├── simply-core/           # Internal library: LLM + MCP + agent + storage traits + event bus
 │   └── llm/               # Multi-provider LLM client (Claude, OpenAI, Gemini, Mistral, Ollama)
 ├── simply-daemon/         # The hub: services, storage, REST/WS server
-│   ├── api/               # API traits + types (shared by daemon, skills, clients)
+│   ├── api/               # API traits + types (shared by daemon, skills, clients); ts/ = @simply/client
 │   ├── src/
 │   │   ├── builder.rs     # DaemonBuilder — wires all services
 │   │   ├── embedded.rs    # EmbeddedDaemon (in-process impl)
-│   │   ├── services/      # registry.rs, providers.rs, tools.rs, model, asset, document, voice, search...
+│   │   ├── services/      # registry.rs, providers.rs, tools.rs, model, asset, entity, voice, search...
 │   │   ├── mcp/           # MCP service, OAuth, config
 │   │   └── net/           # REST + WS server, admin API, auth
 │   └── admin/             # Astro + Svelte 5 admin UI
 ├── simply-rpc/            # Transport-agnostic RPC framework, #[rpc_service] macro
-├── simply-voice/          # Voice providers: STT, TTS, Realtime, VAD
+├── simply-voice/          # Voice providers: STT, TTS, Realtime, VAD (Pocket TTS + Kyutai STT local, Voxtral, Whisper, ElevenLabs, Gemini)
+├── aurora/                # Voice-agent pipeline lib + trial CLI + aurora-voice design tool
+├── aurora-orb/            # macOS floating-dot Tauri app (ships as Aurora.app/dmg)
+├── simply-terminal/       # PTY host + simply-term attach client (depends on nothing in this repo)
+├── simply-terminal-skill/ # Daemon adapter: agent-driven claude/pi sessions shared with the human via PTY
 ├── lumina/                # Discord bot (serenity + songbird)
+├── telegram-bot/          # Telegram bot (long polling + daemon sessions)
 ├── mcp-gdocs/             # Google Docs MCP server + GDocsSkill
-├── noema/                 # Tauri desktop shell (thin — loads admin UI)
+├── noema/                 # Tauri desktop shell (src-tauri/) + Svelte UI (ui/)
 ├── commands/              # Command framework with completion
-└── config/                # Settings, env loading, encrypted credentials
+├── config/                # Settings, encrypted credentials
+└── xtask/                 # cargo xtask (e.g. `cargo aurora install`)
 ```
 
 ---

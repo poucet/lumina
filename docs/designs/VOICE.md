@@ -82,4 +82,4 @@ Clients and daemon agree on a common streaming format (PCM, specific sample rate
 
 The voice API is generic — any process that produces/consumes the common audio format can stream to the daemon. Future audio sources (WebRTC, Google Meet, phone bridge) don't need changes to the daemon or existing clients.
 
-See [v1.0 TASKS.md — RTC](../v1.0/TASKS.md#3-rtc-voice-over-webrtc) for the WebRTC integration plan.
+WebRTC integration is a future platform in [ops/ROADMAP.md](../ops/ROADMAP.md) (WebRTC / simply-chris.ai/meet).

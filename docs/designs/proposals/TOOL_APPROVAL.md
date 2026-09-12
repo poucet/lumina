@@ -1,6 +1,6 @@
 # Design: Tool Call Approval Flow
 
-**Status:** Accepted — tasks in [v1.0 TASKS.md](../../v1.0/TASKS.md#stage-3--permission-model) (Multi-user Stage 3)
+**Status:** Accepted — scheduled under Multi-user polish in [ops/ROADMAP.md](../../ops/ROADMAP.md)
 **Affects:** SessionApi, Lumina chat, MCP tool execution
 
 ---
