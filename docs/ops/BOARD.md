@@ -4,6 +4,7 @@
 
 | Status | Date       | Track            | Description |
 |--------|------------|------------------|-------------|
+| coding | 2026-09-12 | aurora-mcp       | `[mcp]` section in aurora.toml: Aurora declares the MCP servers she needs (Simply Flux at `http://127.0.0.1:3927/mcp` as the shipped example) and reconciles them into whichever daemon she reaches — embedded or running — through `McpApi` (add / update / start retry). One mechanism for both paths; mcp.toml stays the daemon's working set. Ruled by Chris 2026-09-12 over "config only" and "tray UI". |
 
 Awaiting Chris (runtime trials, no Claude needed): reinstall dmg v2 if the
 installed copy predates 986a49dd; `cargo check -p aurora --bins` after
