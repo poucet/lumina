@@ -1,6 +1,5 @@
 //! Application initialization + deep-link handling.
 
-use simply_daemon::api::*;
 use simply_daemon::net;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};

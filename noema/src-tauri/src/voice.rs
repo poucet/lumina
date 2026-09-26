@@ -45,7 +45,7 @@ pub struct AudioDeviceInfo {
 
 /// Handle to an active capture. Kept in app state so `start` / `stop` can
 /// find and tear it down.
-struct CaptureHandle {
+pub(crate) struct CaptureHandle {
     /// Signals the cpal thread to drop its `Stream`.
     stream_stop: std::sync::mpsc::Sender<()>,
     /// Signals the WS pump to exit.
