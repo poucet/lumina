@@ -229,9 +229,9 @@ mod tests {
 
     #[test]
     fn test_parse_type_conversion() {
-        let ts = TokenStream::new("42 3.14 true".to_string());
+        let ts = TokenStream::new("42 2.5 true".to_string());
         assert_eq!(ts.parse::<i32>(0), Some(42));
-        assert_eq!(ts.parse::<f64>(1), Some(3.14));
+        assert_eq!(ts.parse::<f64>(1), Some(2.5));
         assert_eq!(ts.parse::<bool>(2), Some(true));
     }
 
