@@ -195,6 +195,7 @@ fn generate_rest_client_body(method: &ParsedMethod, endpoint: &RestEndpoint) -> 
         quote! {
             {
                 #[derive(::serde::Serialize)]
+                #[allow(non_camel_case_types)]
                 struct #struct_name { #(#fields,)* }
                 ::serde_json::to_value(&#struct_name { #(#field_inits,)* })?
             }

@@ -367,6 +367,7 @@ fn generate_deser_and_args(method: &ParsedMethod) -> (TokenStream, Vec<TokenStre
 
     let deser = quote! {
         #[derive(::serde::Deserialize)]
+        #[allow(non_camel_case_types)]
         struct #struct_name {
             #(#fields,)*
         }
