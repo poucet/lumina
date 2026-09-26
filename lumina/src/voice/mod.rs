@@ -408,9 +408,18 @@ impl VoiceManager {
     pub async fn synthesize_for_discord(&self, text: &str, binding: &TtsBinding) -> anyhow::Result<Vec<f32>> {
         let audio = self.daemon.voice().synthesize(text, &binding.provider_id, &binding.voice_id).await?;
         let mono = audio.to_f32_samples();
+        // Level stats tell a silent or corrupt synth apart from a playback
+        // problem: Opus turns NaN into silence without complaint.
+        let finite = mono.iter().filter(|s| s.is_finite());
+        let peak = finite.clone().fold(0f32, |m, s| m.max(s.abs()));
+        let rms = (finite.map(|s| s * s).sum::<f32>() / mono.len().max(1) as f32).sqrt();
+        let non_finite = mono.iter().filter(|s| !s.is_finite()).count();
         tracing::info!(
             text_len = text.len(),
             samples = mono.len(),
+            peak,
+            rms,
+            non_finite,
             source_rate = audio.format.sample_rate,
             provider = %binding.provider_id,
             voice = %binding.voice_id,
