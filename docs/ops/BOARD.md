@@ -14,7 +14,9 @@ wiring + tool_filter one-liners); trial "Aurora, start a claude session in
 
 ## Queue
 
-(empty)
+| Status | Date       | Track     | Description |
+|--------|------------|-----------|-------------|
+| ready  | 2026-09-26 | VA-KYUTAI | simply-voice Kyutai: reset per session, end of turn waits out the ASR delay, close flushes. Chain in `.jj-workspaces/VA-KYUTAI`, rebased, gates green; land it. Then voice-agent drops `KyutaiTurn`'s hold + flush and its fresh-model-per-case test workaround |
 
 ## Later / icebox
 
