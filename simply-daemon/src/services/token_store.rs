@@ -74,6 +74,12 @@ pub struct TransientTokenStore {
     persist_path: Option<PathBuf>,
 }
 
+impl Default for TransientTokenStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TransientTokenStore {
     /// In-memory only — nothing written to disk.
     pub fn new() -> Self {

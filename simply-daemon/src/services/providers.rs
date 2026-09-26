@@ -14,7 +14,7 @@ use rmcp::model::{CallToolRequestParams, CallToolResult, Content, Tool};
 use simply_rpc::RequestContext;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-use simply_core::mcp::{McpRegistry, McpToolCaller, ServerConfig};
+use simply_core::mcp::{McpRegistry, McpToolCaller};
 use simply_daemon_api::skill::OAuthRequirement;
 use simply_daemon_api::{ProviderKind, ToolProvider};
 

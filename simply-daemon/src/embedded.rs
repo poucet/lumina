@@ -58,6 +58,7 @@ pub struct EmbeddedDaemon<S: StorageTypes> {
 impl<S: StorageTypes> EmbeddedDaemon<S>
 {
     /// Assemble from pre-built services. Use `DaemonBuilder` to construct.
+    #[allow(clippy::too_many_arguments)] // one slot per service; only DaemonBuilder calls it
     pub(crate) fn assemble(
         coordinator: Arc<StorageCoordinator<S>>,
         stores: Arc<dyn Stores<S>>,
@@ -205,7 +206,7 @@ impl<S: StorageTypes> EmbeddedDaemon<S>
 
     fn require_user(&self, ctx: &simply_rpc::RequestContext) -> anyhow::Result<simply_core::storage::ids::UserId> {
         ctx.scope.user_id.as_ref()
-            .map(|id| simply_core::storage::ids::UserId::from_string(id))
+            .map(simply_core::storage::ids::UserId::from_string)
             .ok_or_else(|| anyhow::anyhow!("authentication required"))
     }
 

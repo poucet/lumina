@@ -8,7 +8,7 @@
 //!
 //! Set SKIP_ADMIN_BUILD=1 to skip everything (fast Rust-only iteration).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::fs;
 
@@ -91,7 +91,7 @@ const STRING_TYPES: &[&str] = &[
 /// These are stripped from generated TS function signatures.
 const TRANSPORT_PARAMS: &[&str] = &["RequestContext", "BinaryUpload"];
 
-fn generate_api_client(api_dir: &PathBuf, out_dir: &PathBuf) {
+fn generate_api_client(api_dir: &Path, out_dir: &Path) {
     let pattern = format!("{}/**/*.rs", api_dir.display());
     let files: Vec<_> = glob::glob(&pattern)
         .unwrap()
@@ -146,7 +146,7 @@ fn generate_api_client(api_dir: &PathBuf, out_dir: &PathBuf) {
 /// Scan `types/` for ts-rs generated `.ts` files and create a barrel `types.ts`
 /// that re-exports everything. If no files exist yet (ts-rs test hasn't run),
 /// leaves `types.ts` as-is.
-fn generate_types_barrel(out_dir: &PathBuf) {
+fn generate_types_barrel(out_dir: &Path) {
     let types_dir = out_dir.join("types");
     if !types_dir.is_dir() { return; }
 
@@ -177,15 +177,6 @@ fn generate_types_barrel(out_dir: &PathBuf) {
         "cargo:warning=Generated types barrel with {type_count} type files → {}",
         out_dir.join("types.ts").display()
     );
-}
-
-fn has_derive(attrs: &[syn::Attribute], name: &str) -> bool {
-    attrs.iter().any(|attr| {
-        if !attr.path().is_ident("derive") { return false; }
-        attr.meta.require_list()
-            .map(|list| list.tokens.to_string().contains(name))
-            .unwrap_or(false)
-    })
 }
 
 // ---------------------------------------------------------------------------
@@ -255,7 +246,7 @@ fn generate_service_client(prefix: &str, trait_item: &syn::ItemTrait) -> String 
         }
 
         let params_str = ts_params.join(", ");
-        let url = build_ts_url(prefix, path_only, &path_params);
+        let url = build_ts_url(path_only, &path_params);
 
         let body = if body_pairs.is_empty() {
             None
@@ -274,7 +265,7 @@ fn generate_service_client(prefix: &str, trait_item: &syn::ItemTrait) -> String 
                 .iter()
                 .map(|(snake, camel)| {
                     if snake == camel {
-                        format!("{snake}")
+                        snake.to_string()
                     } else {
                         format!("{snake}: {camel}")
                     }
@@ -384,7 +375,7 @@ fn extract_path_params(path: &str) -> Vec<String> {
     params
 }
 
-fn build_ts_url(prefix: &str, template: &str, path_params: &[String]) -> String {
+fn build_ts_url(template: &str, path_params: &[String]) -> String {
     if path_params.is_empty() {
         format!("'/api{template}'")
     } else {

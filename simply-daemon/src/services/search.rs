@@ -14,7 +14,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use simply_core::embedding::{self, VectorStore};
+use simply_core::embedding;
 use simply_core::storage::ids::UserId;
 use simply_core::storage::traits::{EntityStore, StorageTypes, Stores, StoredEntity, TextStore, UserStore};
 use simply_core::storage::types::RelationType;
@@ -63,7 +63,7 @@ impl<S: StorageTypes> SearchService<S> {
 impl<S: StorageTypes> SearchApi for SearchService<S> {
     async fn search(&self, ctx: &RequestContext, request: SearchRequest) -> anyhow::Result<Vec<SearchHit>> {
         let top_k = request.top_k.unwrap_or(5);
-        let caller = ctx.scope.user_id.as_ref().map(|id| UserId::from_string(id));
+        let caller = ctx.scope.user_id.as_ref().map(UserId::from_string);
 
         let embeddings = self.embedding_provider.embed(&[&request.query]).await?;
         let vector = embeddings.into_iter().next()

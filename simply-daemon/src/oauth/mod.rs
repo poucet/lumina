@@ -225,7 +225,7 @@ async fn complete_server_token_exchange(
         resolved.client_secret.as_deref(),
     ).await?;
 
-    let server_user = UserId::from_string(&format!("server:{server_id}"));
+    let server_user = UserId::from_string(format!("server:{server_id}"));
     token_store.store(&server_user, server_id, McpUserToken {
         access_token: tokens.access_token.clone(),
         refresh_token: None,

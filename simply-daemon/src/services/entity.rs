@@ -450,7 +450,7 @@ impl<S: StorageTypes> EntityApi for EntityService<S> {
         let matching: Vec<_> = all
             .into_iter()
             .filter(|e| AccessPolicy::can_read(Some(&user_id), e))
-            .filter(|e| e.name.as_deref().map_or(false, |n| n.to_lowercase().contains(&needle)))
+            .filter(|e| e.name.as_deref().is_some_and(|n| n.to_lowercase().contains(&needle)))
             .take(50)
             .collect();
         let roots = self.filter_roots(matching, root_of_relation.as_deref()).await?;

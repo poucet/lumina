@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
-use async_trait::async_trait;
 use llm::{ToolDefinition, ToolResultContent};
 use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
 
@@ -87,6 +86,12 @@ pub struct WsToolRegistry {
     /// connection_id → provider
     providers: RwLock<HashMap<u64, WsToolProvider>>,
     next_conn_id: std::sync::atomic::AtomicU64,
+}
+
+impl Default for WsToolRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WsToolRegistry {

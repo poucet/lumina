@@ -1,13 +1,7 @@
 //! Core daemon service (health, shutdown, version).
 
-use std::sync::Arc;
 use async_trait::async_trait;
-use tokio::sync::Mutex;
-use simply_core::storage::coordinator::StorageCoordinator;
-use simply_core::storage::traits::{StorageTypes, Stores};
-use simply_rpc::RequestContext;
 use crate::api::*;
-use tokio::sync::mpsc;
 
 pub struct CoreService {
     kill_tx: Option<tokio::sync::mpsc::Sender<()>>,

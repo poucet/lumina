@@ -1,6 +1,5 @@
 //! Daemon-specific RPC connection — implements `RpcConnection` over WebSocket.
 
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde_json::Value;

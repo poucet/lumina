@@ -30,6 +30,12 @@ pub struct ConnectionTracker {
     next_id: Arc<AtomicU64>,
 }
 
+impl Default for ConnectionTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionTracker {
     pub fn new() -> Self {
         Self {

@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use simply_core::storage::traits::{StorageTypes, Stores, UserStore};
 use simply_core::storage::coordinator::StorageCoordinator;
-use simply_rpc::{ServiceRouter, RpcService};
+use simply_rpc::ServiceRouter;
 
 use crate::api::*;
 use crate::embedded::EmbeddedDaemon;

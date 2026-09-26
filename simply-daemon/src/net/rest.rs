@@ -50,7 +50,6 @@ struct AppState {
     rest_dispatcher: Arc<ServiceRouter>,
     tracker: ConnectionTracker,
     daemon_secret: Arc<str>,
-    sessions: SessionStore,
     tools: Arc<crate::services::ToolRegistry>,
 }
 
@@ -66,7 +65,6 @@ pub async fn start(config: ServerConfig) -> anyhow::Result<ServerHandle> {
         rest_dispatcher: config.rest_dispatcher,
         tracker: config.tracker,
         daemon_secret: Arc::from(config.daemon_secret.as_str()),
-        sessions: sessions.clone(),
         tools: Arc::clone(&config.tools),
     };
 
@@ -387,7 +385,6 @@ async fn handle_ws_connection(
     // reverse-call ids never collide and responses route unambiguously.
     let ws_conn_state = Arc::new(crate::services::providers::WsConnState::new(write_tx.clone()));
     let mut ws_providers: Vec<Arc<crate::services::providers::WsToolProvider>> = Vec::new();
-    let ws_conn_id = format!("ws-{}", conn_id);
 
     let writer_handle = tokio::spawn(async move {
         while let Some(text) = write_rx.recv().await {

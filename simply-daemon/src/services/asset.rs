@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 use async_trait::async_trait;
-use tokio::sync::Mutex;
 use simply_core::storage::coordinator::StorageCoordinator;
 use simply_core::storage::traits::{StorageTypes, Stores};
 use simply_rpc::RequestContext;

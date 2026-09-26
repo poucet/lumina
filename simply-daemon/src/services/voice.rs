@@ -2,10 +2,6 @@
 
 use std::sync::Arc;
 use async_trait::async_trait;
-use tokio::sync::Mutex;
-use simply_core::storage::coordinator::StorageCoordinator;
-use simply_core::storage::traits::{StorageTypes, Stores};
-use simply_rpc::RequestContext;
 use crate::api::*;
 use tokio::sync::mpsc;
 
@@ -20,6 +16,12 @@ struct RegisteredProvider {
 
 pub struct VoiceService {
     providers: HashMap<String, RegisteredProvider>,
+}
+
+impl Default for VoiceService {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl VoiceService {
@@ -94,9 +96,7 @@ fn spawn_stt_pipeline(
         let mut vad = VoiceActivityDetector::new();
 
         while let Some(input) = input_rx.recv().await {
-            let chunk = match input {
-                VoiceInput::Audio(c) => c,
-            };
+            let VoiceInput::Audio(chunk) = input;
 
             let samples: Vec<i16> = chunk.data.chunks_exact(2)
                 .map(|c| i16::from_le_bytes([c[0], c[1]]))
