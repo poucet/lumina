@@ -460,7 +460,15 @@ impl VoiceManager {
             voice = %binding.voice_id,
             "TTS synthesized for Discord"
         );
-        Ok(resample_mono_to_stereo_48k(&mono, audio.format.sample_rate))
+        let stereo = resample_mono_to_stereo_48k(&mono, audio.format.sample_rate);
+        // The last clip exactly as songbird gets it, for inspecting a synth
+        // that measures fine but is not heard.
+        if let Some(path) = config::PathManager::logs_dir().map(|d| d.join("last-tts.wav")) {
+            if let Err(e) = tokio::fs::write(&path, wav_f32(&stereo, 48_000, 2)).await {
+                tracing::debug!(error = %e, path = %path.display(), "could not write last-tts.wav");
+            }
+        }
+        Ok(stereo)
     }
 
     /// Queue TTS playback for a guild and return immediately. The synth +
@@ -563,6 +571,27 @@ impl serenity::prelude::TypeMapKey for VoiceManagerKey {
 }
 
 /// Resample mono audio to interleaved stereo 48kHz.
+/// Interleaved f32 samples as a WAV file (IEEE float, format tag 3).
+fn wav_f32(samples: &[f32], sample_rate: u32, channels: u16) -> Vec<u8> {
+    let data_len = (samples.len() * 4) as u32;
+    let block_align = channels * 4;
+    let mut out = Vec::with_capacity(44 + data_len as usize);
+    out.extend_from_slice(b"RIFF");
+    out.extend_from_slice(&(36 + data_len).to_le_bytes());
+    out.extend_from_slice(b"WAVEfmt ");
+    out.extend_from_slice(&16u32.to_le_bytes());
+    out.extend_from_slice(&3u16.to_le_bytes());
+    out.extend_from_slice(&channels.to_le_bytes());
+    out.extend_from_slice(&sample_rate.to_le_bytes());
+    out.extend_from_slice(&(sample_rate * block_align as u32).to_le_bytes());
+    out.extend_from_slice(&block_align.to_le_bytes());
+    out.extend_from_slice(&32u16.to_le_bytes());
+    out.extend_from_slice(b"data");
+    out.extend_from_slice(&data_len.to_le_bytes());
+    out.extend(samples.iter().flat_map(|s| s.to_le_bytes()));
+    out
+}
+
 fn resample_mono_to_stereo_48k(mono: &[f32], source_rate: u32) -> Vec<f32> {
     let ratio = 48_000.0 / source_rate as f64;
     let output_len = (mono.len() as f64 * ratio) as usize;
