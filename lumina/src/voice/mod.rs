@@ -51,6 +51,20 @@ pub struct TtsBinding {
     pub voice_id: String,
 }
 
+/// Per-call overrides for [`VoiceManager::play_tts_as`]. `None` keeps the
+/// session's binding; `gain` scales the samples (1.0 leaves them as they are).
+pub struct TtsOverride {
+    pub provider: Option<String>,
+    pub voice: Option<String>,
+    pub gain: f32,
+}
+
+impl Default for TtsOverride {
+    fn default() -> Self {
+        Self { provider: None, voice: None, gain: 1.0 }
+    }
+}
+
 /// Active voice session for a guild.
 pub struct VoiceSession {
     /// The text channel where transcripts are posted.
@@ -481,13 +495,25 @@ impl VoiceManager {
     /// Returns `Ok(true)` when playback was queued, `Ok(false)` when the
     /// bot isn't in voice (caller should surface that to the LLM).
     pub async fn play_tts(self: &Arc<Self>, guild_id: GuildId, text: &str) -> anyhow::Result<bool> {
-        let binding = {
-            let sessions = self.sessions.lock().await;
-            match sessions.get(&guild_id).and_then(|s| s.tts.clone()) {
-                Some(b) => b,
-                None => return Ok(false),
-            }
+        self.play_tts_as(guild_id, text, TtsOverride::default()).await
+    }
+
+    /// [`Self::play_tts`] with the session's provider, voice or level
+    /// overridden: `/debug say` uses it to A/B providers in a live call.
+    /// Without a session binding, `provider` must be given.
+    pub async fn play_tts_as(
+        self: &Arc<Self>,
+        guild_id: GuildId,
+        text: &str,
+        over: TtsOverride,
+    ) -> anyhow::Result<bool> {
+        let session_binding = self.sessions.lock().await.get(&guild_id).and_then(|s| s.tts.clone());
+        let binding = match (session_binding, over.provider) {
+            (_, Some(provider_id)) => TtsBinding { provider_id, voice_id: over.voice.unwrap_or_default() },
+            (Some(b), None) => TtsBinding { voice_id: over.voice.unwrap_or(b.voice_id), ..b },
+            (None, None) => return Ok(false),
         };
+        let gain = over.gain;
         let Some(songbird) = self.songbird.get() else {
             anyhow::bail!("Songbird not initialized");
         };
@@ -498,7 +524,7 @@ impl VoiceManager {
         let text = text.to_string();
         let handle = tokio::spawn(async move {
             let synth = health.as_ref().map(|h| h.begin(Stage::Tts));
-            let stereo = match vm.synthesize_for_discord(&text, &binding).await {
+            let mut stereo = match vm.synthesize_for_discord(&text, &binding).await {
                 Ok(s) => s,
                 Err(e) => {
                     tracing::warn!(error = %e, "tts synth failed");
@@ -506,6 +532,9 @@ impl VoiceManager {
                 }
             };
             if let Some(synth) = synth { synth.done(); }
+            if gain != 1.0 {
+                stereo.iter_mut().for_each(|s| *s *= gain);
+            }
             let playing = health.as_ref().map(|h| h.begin(Stage::Play));
             let bytes: Vec<u8> = stereo.iter().flat_map(|s| s.to_le_bytes()).collect();
             let input = songbird::input::RawAdapter::new(std::io::Cursor::new(bytes), 48_000, 2);

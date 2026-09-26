@@ -36,6 +36,28 @@ mod debug {
         lx.reply_ephemeral(cmd, &body).await
     }
 
+    #[sub_command(description = "Speak text in this guild's voice call, bypassing the LLM")]
+    pub async fn say(
+        lx: &LuminaContext,
+        cmd: &CommandInteraction,
+        #[describe("Text to speak")] text: String,
+        #[describe("TTS provider (default: the session's)")] provider: Option<String>,
+        #[describe("Voice (default: the session's)")] voice: Option<String>,
+        #[describe("Level in percent (default 100)")] gain: Option<i64>,
+    ) -> anyhow::Result<()> {
+        if !owner_only(lx, cmd).await? { return Ok(()); }
+        let guild_id = cmd.guild_id.ok_or_else(|| anyhow::anyhow!("Not in a guild"))?;
+        let voice_mgr = crate::commands::voice::get_voice_manager(lx).await?;
+        let gain = gain.unwrap_or(100).clamp(0, 400) as f32 / 100.0;
+        let over = crate::voice::TtsOverride { provider, voice, gain };
+        let reply = if voice_mgr.play_tts_as(guild_id, &text, over).await? {
+            "Queued. Watch `/debug voice` for the synth and playback."
+        } else {
+            "Not in a voice call here (or no TTS provider): `/voice join` first."
+        };
+        lx.reply_ephemeral(cmd, reply).await
+    }
+
     #[sub_command(description = "Tokio runtime metrics and uptime")]
     pub async fn runtime(lx: &LuminaContext, cmd: &CommandInteraction) -> anyhow::Result<()> {
         if !owner_only(lx, cmd).await? { return Ok(()); }
