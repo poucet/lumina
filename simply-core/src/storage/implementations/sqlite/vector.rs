@@ -9,16 +9,21 @@ use async_trait::async_trait;
 use rusqlite::{params, Connection};
 
 use super::SqliteStore;
-use crate::embedding::{
-    EntityFilter, EntityTypeMatcher, SearchQuery, SearchResult, VectorChunk, VectorStore,
-};
+use crate::embedding::{SearchQuery, SearchResult, VectorChunk, VectorStore};
 use crate::storage::ids::{ChunkId, ContentBlockId, EntityId};
 
 /// Register sqlite-vec as an auto-extension. Call once before opening any connections.
 pub fn register_sqlite_vec() {
     unsafe {
         rusqlite::ffi::sqlite3_auto_extension(Some(
-            std::mem::transmute(sqlite_vec::sqlite3_vec_init as *const ())
+            std::mem::transmute::<
+                *const (),
+                unsafe extern "C" fn(
+                    *mut rusqlite::ffi::sqlite3,
+                    *mut *mut std::ffi::c_char,
+                    *const rusqlite::ffi::sqlite3_api_routines,
+                ) -> std::ffi::c_int,
+            >(sqlite_vec::sqlite3_vec_init as *const ())
         ));
     }
 }
@@ -71,52 +76,6 @@ fn parse_chunk(row: &rusqlite::Row<'_>) -> rusqlite::Result<VectorChunk> {
         entity_kind: row.get(3)?,
         embedding: vec![], // not loaded from metadata table
     })
-}
-
-/// Build a SQL `WHERE`-fragment (without the `WHERE` keyword) that
-/// encodes an `EntityFilter` against the `entity_kind` column, plus the
-/// positional parameters it needs. Returns `(sql_fragment, params)`.
-///
-/// Examples:
-/// - `include: [Prefix("document::")], exclude: [Exact("document::system_prompt")]`
-///   → `(entity_kind LIKE ?) AND NOT (entity_kind = ?)`
-/// - `include: [], exclude: [Exact("conversation")]`
-///   → `NOT (entity_kind = ?)`
-fn filter_sql(filter: &EntityFilter) -> (String, Vec<String>) {
-    let mut params: Vec<String> = Vec::new();
-    let mut parts: Vec<String> = Vec::new();
-
-    if !filter.include.is_empty() {
-        let inc: Vec<String> = filter
-            .include
-            .iter()
-            .map(|m| matcher_predicate(m, &mut params))
-            .collect();
-        parts.push(format!("({})", inc.join(" OR ")));
-    }
-    if !filter.exclude.is_empty() {
-        let exc: Vec<String> = filter
-            .exclude
-            .iter()
-            .map(|m| matcher_predicate(m, &mut params))
-            .collect();
-        parts.push(format!("NOT ({})", exc.join(" OR ")));
-    }
-
-    (parts.join(" AND "), params)
-}
-
-fn matcher_predicate(m: &EntityTypeMatcher, params: &mut Vec<String>) -> String {
-    match m {
-        EntityTypeMatcher::Exact(k) => {
-            params.push(k.clone());
-            "entity_kind = ?".to_string()
-        }
-        EntityTypeMatcher::Prefix(p) => {
-            params.push(format!("{p}%"));
-            "entity_kind LIKE ?".to_string()
-        }
-    }
 }
 
 #[async_trait]
@@ -284,7 +243,7 @@ impl VectorStore for SqliteStore {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::embedding::{EntityFilter, EntityTypeMatcher};
 
     #[test]
     fn entity_filter_matches_include_empty() {

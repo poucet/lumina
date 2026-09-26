@@ -11,6 +11,7 @@
 //! For SQLite storage, use `storage::SqliteStore`.
 
 mod resolver;
+#[allow(clippy::module_inception)] // storage::session::session holds the Session type itself
 mod session;
 mod types;
 

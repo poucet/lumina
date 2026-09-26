@@ -363,13 +363,13 @@ fn has_uri_scheme(target: &str) -> bool {
         return false;
     };
     let mut chars = scheme.chars();
-    chars.next().map_or(false, |c| c.is_ascii_alphabetic())
+    chars.next().is_some_and(|c| c.is_ascii_alphabetic())
         && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
 }
 
 fn strip_fragment_and_query(target: &str) -> &str {
     target
-        .find(|c| c == '?' || c == '#')
+        .find(['?', '#'])
         .map(|index| &target[..index])
         .unwrap_or(target)
 }

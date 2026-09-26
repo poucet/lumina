@@ -35,7 +35,7 @@ pub enum Schedule {
     /// Fire repeatedly, one `period` apart, measured from registration / last fire.
     Interval { period: StdDuration },
     /// Fire on a cron schedule (6 or 7 fields, seconds-first).
-    Cron(cron::Schedule),
+    Cron(Box<cron::Schedule>),
 }
 
 impl Schedule {
@@ -67,7 +67,7 @@ impl Schedule {
     pub fn cron(expr: &str) -> anyhow::Result<Self> {
         let schedule = cron::Schedule::from_str(expr)
             .map_err(|e| anyhow::anyhow!("invalid cron expression {expr:?}: {e}"))?;
-        Ok(Schedule::Cron(schedule))
+        Ok(Schedule::Cron(Box::new(schedule)))
     }
 
     /// The event type emitted when this schedule fires.

@@ -128,5 +128,5 @@ fn resolved_message_to_chat_message(msg: &ResolvedMessage) -> ChatMessage {
             ResolvedContent::ToolResult(result) => ContentBlock::ToolResult(result.clone()),
         })
         .collect();
-    ChatMessage::new(msg.role.into(), ChatPayload::new(blocks))
+    ChatMessage::new(msg.role, ChatPayload::new(blocks))
 }

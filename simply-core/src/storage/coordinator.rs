@@ -209,7 +209,7 @@ impl<S: StorageTypes> StorageCoordinator<S> {
         state: Option<AppendState>,
     ) -> Result<(ResolvedMessage, AppendState)> {
         let role = msg.role;
-        let needs_new_turn = state.as_ref().map_or(true, |s| s.role != role);
+        let needs_new_turn = state.as_ref().is_none_or(|s| s.role != role);
 
         let (turn_id, span_id) = if needs_new_turn {
             self.create_turn_with_span(conversation_id, role).await?
@@ -814,7 +814,7 @@ impl<S: StorageTypes> StorageCoordinator<S> {
         let prefix = format!("{scheme}:");
         Ok(all
             .into_iter()
-            .filter(|e| e.origin.as_deref().map_or(false, |o| o.starts_with(&prefix)))
+            .filter(|e| e.origin.as_deref().is_some_and(|o| o.starts_with(&prefix)))
             .collect())
     }
 

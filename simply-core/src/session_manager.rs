@@ -112,6 +112,7 @@ impl SessionManager {
     ///
     /// For `Persistent`: opens the existing conversation from storage (loads history).
     /// For `Ephemeral`: creates an in-memory context.
+    #[allow(clippy::too_many_arguments)] // one flat constructor per session; callers pass each piece explicitly
     pub async fn create<S: StorageTypes + 'static>(
         session_id: impl Into<String>,
         persistence: Persistence,

@@ -37,6 +37,7 @@ impl OriginKind {
     }
 
     /// Parse from database string representation
+    #[allow(clippy::should_implement_trait)] // returns Option, not a FromStr error; callers depend on that shape
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "user" => Some(OriginKind::User),
@@ -220,6 +221,7 @@ impl ContentType {
     }
 
     /// Parse from database string representation
+    #[allow(clippy::should_implement_trait)] // returns Option, not a FromStr error; callers depend on that shape
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "plain" => Some(ContentType::Plain),

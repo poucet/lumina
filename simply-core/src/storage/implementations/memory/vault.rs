@@ -58,7 +58,7 @@ impl VaultStore for MemoryVaultStore {
             .lock()
             .unwrap()
             .values()
-            .filter(|file| status.map_or(true, |s| &file.sync_status == s))
+            .filter(|file| status.is_none_or(|s| &file.sync_status == s))
             .cloned()
             .collect();
         files.sort_by(|a, b| a.path.cmp(&b.path));

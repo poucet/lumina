@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use llm::{ChatMessage, ChatPayload, ContentBlock, Role};
+use llm::{ChatMessage, ChatPayload, ContentBlock};
 
 use crate::agent::ConversationContext;
 use crate::storage::coordinator::StorageCoordinator;

@@ -229,7 +229,7 @@ impl McpRegistry {
 
     pub fn all_statuses(&self) -> HashMap<String, ServerStatus> {
         let mut statuses = HashMap::new();
-        for (id, _) in &self.config.servers {
+        for id in self.config.servers.keys() {
             statuses.insert(id.clone(), self.get_status(id));
         }
         statuses
@@ -322,6 +322,9 @@ const MAX_CONNECT_ATTEMPTS: u32 = 8;
 /// spawned later always wins registration.
 static NEXT_RETRY_GENERATION: AtomicU64 = AtomicU64::new(1);
 
+/// Callback invoked with a server id whenever that server's status changes.
+pub type StatusCallback = dyn Fn(&str, &ServerStatus) + Send + Sync;
+
 /// Spawn a background retry task for connecting to an MCP server.
 ///
 /// `bearer_token` — resolved externally by the daemon before spawning.
@@ -340,7 +343,7 @@ pub fn spawn_retry_task(
     server_id: String,
     config: ServerConfig,
     bearer_token: Option<String>,
-    on_status_change: Option<Box<dyn Fn(&str, &ServerStatus) + Send + Sync>>,
+    on_status_change: Option<Box<StatusCallback>>,
 ) -> CancellationToken {
     let token = CancellationToken::new();
     let cancel_token = token.clone();
@@ -485,7 +488,7 @@ pub fn spawn_retry_task(
 pub async fn start_auto_connect(
     registry: Arc<Mutex<McpRegistry>>,
     bearer_tokens: HashMap<String, String>,
-    on_status_change: Option<Arc<dyn Fn(&str, &ServerStatus) + Send + Sync>>,
+    on_status_change: Option<Arc<StatusCallback>>,
 ) -> usize {
     let servers_to_connect: Vec<(String, ServerConfig)> = {
         let reg = registry.lock().await;
@@ -502,11 +505,11 @@ pub async fn start_auto_connect(
             }
         }
 
-        let cb: Option<Box<dyn Fn(&str, &ServerStatus) + Send + Sync>> =
+        let cb: Option<Box<StatusCallback>> =
             on_status_change.as_ref().map(|f| {
                 let f = Arc::clone(f);
                 Box::new(move |id: &str, status: &ServerStatus| f(id, status))
-                    as Box<dyn Fn(&str, &ServerStatus) + Send + Sync>
+                    as Box<StatusCallback>
             });
 
         let bearer_token = bearer_tokens.get(&server_id).cloned();

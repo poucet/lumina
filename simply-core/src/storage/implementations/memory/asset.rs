@@ -70,7 +70,7 @@ impl AssetStore for MemoryAssetStore {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::{implementations::memory::blob, types::BlobHash};
+    use crate::storage::types::BlobHash;
 
     use super::*;
 

@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use crate::storage::ids::{AssetId, ContentBlockId, EntityId, UserId};
@@ -109,7 +109,7 @@ impl MemoryEntityStore {
 
             let relation_counts = counts
                 .entry(entity_id.clone())
-                .or_insert_with(BTreeMap::new);
+                .or_default();
             *relation_counts
                 .entry(entry.relation.as_str().to_string())
                 .or_insert(0) += 1;
@@ -182,7 +182,7 @@ impl EntityStore for MemoryEntityStore {
         let mut result: Vec<_> = entities
             .values()
             .filter(|e| e.user_id.as_ref() == Some(user_id))
-            .filter(|e| entity_type.map_or(true, |t| &e.entity_type == t))
+            .filter(|e| entity_type.is_none_or(|t| &e.entity_type == t))
             .map(|e| e.to_stored())
             .collect();
         result.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
@@ -215,7 +215,7 @@ impl EntityStore for MemoryEntityStore {
             .values()
             .filter(|e| e.user_id.as_ref() == Some(user_id))
             .filter(|e| {
-                query.entity_types.as_ref().map_or(true, |types| {
+                query.entity_types.as_ref().is_none_or(|types| {
                     types.iter().any(|t| &e.entity_type == t)
                 })
             })
@@ -302,7 +302,7 @@ impl EntityStore for MemoryEntityStore {
         let result: Vec<_> = relations
             .values()
             .filter(|e| e.from_id == *id)
-            .filter(|e| relation_type.map_or(true, |t| &e.relation == t))
+            .filter(|e| relation_type.is_none_or(|t| &e.relation == t))
             .map(|e| {
                 (
                     e.to_id.clone(),
@@ -326,7 +326,7 @@ impl EntityStore for MemoryEntityStore {
         let result: Vec<_> = relations
             .values()
             .filter(|e| e.to_id == *id)
-            .filter(|e| relation_type.map_or(true, |t| &e.relation == t))
+            .filter(|e| relation_type.is_none_or(|t| &e.relation == t))
             .map(|e| {
                 (
                     e.from_id.clone(),

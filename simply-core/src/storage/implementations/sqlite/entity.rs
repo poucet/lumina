@@ -3,7 +3,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use rusqlite::{params, Connection, ToSql};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use super::SqliteStore;
 use crate::storage::helper::unix_timestamp;
@@ -129,12 +129,10 @@ fn count_relations_by_entity(
         return Ok(RelationCountMap::new());
     }
 
-    let id_placeholders = std::iter::repeat("?")
-        .take(ids.len())
+    let id_placeholders = std::iter::repeat_n("?", ids.len())
         .collect::<Vec<_>>()
         .join(", ");
-    let relation_placeholders = std::iter::repeat("?")
-        .take(relation_types.len())
+    let relation_placeholders = std::iter::repeat_n("?", relation_types.len())
         .collect::<Vec<_>>()
         .join(", ");
     let sql = format!(
@@ -165,7 +163,7 @@ fn count_relations_by_entity(
         if count > 0 {
             counts
                 .entry(EntityId::from_string(entity_id))
-                .or_insert_with(BTreeMap::new)
+                .or_default()
                 .insert(relation, count as u32);
         }
     }
@@ -218,7 +216,7 @@ impl EntityStore for SqliteStore {
             return Ok(Vec::new());
         }
         let conn = self.read_conn().lock().unwrap();
-        let placeholders = std::iter::repeat("?").take(ids.len()).collect::<Vec<_>>().join(",");
+        let placeholders = std::iter::repeat_n("?", ids.len()).collect::<Vec<_>>().join(",");
         let sql = format!(
             "SELECT {ENTITY_SELECT_COLUMNS} FROM entities WHERE id IN ({placeholders})"
         );
@@ -921,7 +919,7 @@ mod tests {
         assert_eq!(users_of_a, vec![entity.clone()]);
 
         // Re-set to just asset_b — asset_a should be removed from the mapping.
-        store.set_entity_assets(&entity, &[asset_b.clone()]).await.unwrap();
+        store.set_entity_assets(&entity, std::slice::from_ref(&asset_b)).await.unwrap();
         let got = store.get_entity_assets(&entity).await.unwrap();
         assert_eq!(got, vec![asset_b]);
         let users_of_a = store.entities_referencing_asset(&asset_a).await.unwrap();

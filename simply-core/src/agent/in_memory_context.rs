@@ -12,6 +12,12 @@ pub struct InMemoryContext {
     system_prompt: Option<String>,
 }
 
+impl Default for InMemoryContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryContext {
     pub fn new() -> Self {
         Self {

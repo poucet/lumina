@@ -137,7 +137,7 @@ impl TextStore for SqliteStore {
             return Ok(HashMap::new());
         }
         let conn = self.read_conn().lock().unwrap();
-        let placeholders = std::iter::repeat("?").take(ids.len()).collect::<Vec<_>>().join(",");
+        let placeholders = std::iter::repeat_n("?", ids.len()).collect::<Vec<_>>().join(",");
         let sql = format!(
             "SELECT id, text FROM content_blocks WHERE id IN ({placeholders})"
         );
