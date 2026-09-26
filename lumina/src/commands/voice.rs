@@ -9,7 +9,7 @@ use serenity::all::{
 use serenity::builder::GetMessages;
 use simply_daemon_api::*;
 
-use super::{sub_string_arg, LuminaContext};
+use super::LuminaContext;
 use crate::voice::{VoiceManagerKey, VoiceMode};
 
 #[lumina_macros::command_group(description = "Voice channel commands")]
@@ -69,27 +69,28 @@ mod voice {
         lx.reply_ephemeral(cmd, if left { "Left voice channel." } else { "Not in a voice channel." }).await
     }
 
-    #[sub_command(description = "Set STT or TTS provider")]
-    pub async fn provider(
+    #[sub_command(description = "Set the speech-to-text provider")]
+    pub async fn stt(
         lx: &LuminaContext,
         cmd: &CommandInteraction,
-        #[describe("stt or tts")] kind: String,
         #[describe("Provider ID")] #[autocomplete] id: String,
     ) -> anyhow::Result<()> {
         let voice_mgr = get_voice_manager(lx).await?;
-        match kind.as_str() {
-            "stt" => {
-                voice_mgr.set_stt_provider(id.clone()).await;
-                save_voice_config(lx, &voice_mgr).await;
-                lx.reply_ephemeral(cmd, &format!("STT provider set to **{id}**")).await
-            }
-            "tts" => {
-                voice_mgr.set_tts_provider(id.clone()).await;
-                save_voice_config(lx, &voice_mgr).await;
-                lx.reply(cmd, &format!("TTS provider set to **{id}**")).await
-            }
-            _ => lx.reply_ephemeral(cmd, "Type must be 'stt' or 'tts'").await,
-        }
+        voice_mgr.set_stt_provider(id.clone()).await;
+        save_voice_config(lx, &voice_mgr).await;
+        lx.reply_ephemeral(cmd, &format!("STT provider set to **{id}**")).await
+    }
+
+    #[sub_command(description = "Set the text-to-speech provider")]
+    pub async fn tts(
+        lx: &LuminaContext,
+        cmd: &CommandInteraction,
+        #[describe("Provider ID")] #[autocomplete] id: String,
+    ) -> anyhow::Result<()> {
+        let voice_mgr = get_voice_manager(lx).await?;
+        voice_mgr.set_tts_provider(id.clone()).await;
+        save_voice_config(lx, &voice_mgr).await;
+        lx.reply(cmd, &format!("TTS provider set to **{id}**")).await
     }
 
     #[sub_command(description = "Set the TTS voice")]
@@ -165,16 +166,12 @@ mod voice {
         tracing::debug!(subcommand, "voice autocomplete");
 
         let choices: Vec<AutocompleteChoice> = match subcommand {
-            "provider" => {
-                // Once `kind` (stt/tts) is filled in, offer only providers with
-                // that capability; before that, offer all of them.
-                let kind = options.first()
-                    .and_then(|sub| sub_string_arg(&sub.value, "kind"))
-                    .map(|k| k.trim().to_ascii_lowercase())
-                    .filter(|k| !k.is_empty());
+            // The subcommand name is the capability: `/voice stt` offers STT
+            // providers, `/voice tts` offers TTS providers.
+            kind @ ("stt" | "tts") => {
                 let providers = voice_mgr.daemon().voice().list_voice_providers().await.unwrap_or_default();
                 providers.iter()
-                    .filter(|p| kind.as_ref().is_none_or(|k| p.capabilities.contains(k)))
+                    .filter(|p| p.capabilities.iter().any(|c| c == kind))
                     .map(|p| AutocompleteChoice::new(
                         format!("{} ({})", p.name, p.capabilities.join(", ")),
                         p.id.clone(),
@@ -185,7 +182,7 @@ mod voice {
                 let tts_id = voice_mgr.tts_provider_id().await.unwrap_or_default();
                 tracing::debug!(tts_provider = %tts_id, "fetching voices for autocomplete");
                 if tts_id.is_empty() {
-                    vec![AutocompleteChoice::new("Set a TTS provider first (/voice provider tts ...)", "")]
+                    vec![AutocompleteChoice::new("Set a TTS provider first (/voice tts ...)", "")]
                 } else {
                     let voices = voice_mgr.daemon().voice().list_voices(&tts_id).await.unwrap_or_default();
                     tracing::debug!(count = voices.len(), "got voices for autocomplete");

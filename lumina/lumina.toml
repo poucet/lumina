@@ -13,7 +13,7 @@ history_limit = 1000
 # model_id = ""
 
 [voice]
-# STT provider ID — use /voice provider to list available options
+# STT provider ID — use /voice stt to pick one, /voice list to see them all
 # stt_provider = "whisper"
 # stt_provider = "voxtral"
 

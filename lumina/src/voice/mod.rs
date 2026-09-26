@@ -418,7 +418,7 @@ impl VoiceManager {
                 providers.iter()
                     .find(|p| p.capabilities.contains(&"tts".to_string()))
                     .map(|p| p.id.clone())
-                    .ok_or_else(|| anyhow::anyhow!("No TTS provider available. Use /voice provider to set one."))?
+                    .ok_or_else(|| anyhow::anyhow!("No TTS provider available. Use /voice tts to set one."))?
             }
         };
 
