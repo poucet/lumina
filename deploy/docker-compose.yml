@@ -30,3 +30,7 @@ services:
       # All config + state (SQLite, CAS blob store, vault) on the host, so it
       # survives rebuilds and is editable over SSH.
       - ./data:/data
+      # Hugging Face cache for the local pocket-tts model. pocket-tts hardcodes
+      # ~/.cache/huggingface, so without this every rebuild re-downloads it.
+      # An HF token for the gated weights goes in data/hf-cache/token.
+      - ./data/hf-cache:/root/.cache/huggingface

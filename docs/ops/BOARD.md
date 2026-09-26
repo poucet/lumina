@@ -16,6 +16,7 @@ wiring + tool_filter one-liners); trial "Aurora, start a claude session in
 
 | Status | Date       | Track     | Description |
 |--------|------------|-----------|-------------|
+| ready  | 2026-09-26 | POCKET-VOICE | Lumina on pocket-tts with custom voices from `data/models/voices/`; image built `--features pocket-tts`, HF cache bind-mounted; `/voice provider` autocomplete filtered by kind. Chain in `.workspaces/pocket-voice`. Needs Chris: push simply-voice, bump the lock, `cargo check`, then land |
 | ready  | 2026-09-26 | VA-KYUTAI | simply-voice Kyutai: reset per session, end of turn waits out the ASR delay, close flushes. Chain in `.jj-workspaces/VA-KYUTAI`, rebased, gates green; land it. Then voice-agent drops `KyutaiTurn`'s hold + flush and its fresh-model-per-case test workaround |
 
 ## Later / icebox

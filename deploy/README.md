@@ -58,6 +58,8 @@ editable over SSH. The wizard writes the `config/*.toml` files for you:
 | `data/blob_storage/`               | content-addressed (CAS) blob store         |
 | `data/vault/`                      | Markdown vault files                       |
 | `data/logs/lumina.log`             | app logs (daily-rolled; also in `docker compose logs`) |
+| `data/models/voices/`              | custom pocket-tts voices (`<name>.safetensors` or `<name>.wav`), offered by `/voice set-voice` as `<name>` |
+| `data/hf-cache/`                   | Hugging Face model cache (pocket-tts weights; `token` for gated repos) |
 | `data/SETUP-URL.txt`               | the current setup link (deleted on setup)  |
 
 ## Prerequisites

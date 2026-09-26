@@ -11,6 +11,8 @@ path = "src/main.rs"
 [features]
 default = ["embedded"]
 embedded = ["dep:simply-daemon"]
+# Local pocket-tts voices in the embedded daemon.
+pocket-tts = ["simply-daemon/pocket-tts"]
 
 [dependencies]
 # Internal crates

@@ -9,7 +9,7 @@ use serenity::all::{
 use serenity::builder::GetMessages;
 use simply_daemon_api::*;
 
-use super::LuminaContext;
+use super::{sub_string_arg, LuminaContext};
 use crate::voice::{VoiceManagerKey, VoiceMode};
 
 #[lumina_macros::command_group(description = "Voice channel commands")]
@@ -166,8 +166,15 @@ mod voice {
 
         let choices: Vec<AutocompleteChoice> = match subcommand {
             "provider" => {
+                // Once `kind` (stt/tts) is filled in, offer only providers with
+                // that capability; before that, offer all of them.
+                let kind = options.first()
+                    .and_then(|sub| sub_string_arg(&sub.value, "kind"))
+                    .map(|k| k.trim().to_ascii_lowercase())
+                    .filter(|k| !k.is_empty());
                 let providers = voice_mgr.daemon().voice().list_voice_providers().await.unwrap_or_default();
                 providers.iter()
+                    .filter(|p| kind.as_ref().is_none_or(|k| p.capabilities.contains(k)))
                     .map(|p| AutocompleteChoice::new(
                         format!("{} ({})", p.name, p.capabilities.join(", ")),
                         p.id.clone(),

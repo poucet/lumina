@@ -17,11 +17,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use serenity::all::CommandInteraction;
+use serenity::all::{CommandInteraction, ResolvedOption, ResolvedValue};
 use serenity::builder::CreateCommand;
 use serenity::prelude::*;
 use simply_daemon_api::Daemon;
 use simply_rpc::RequestContext;
+
+/// Extract a String argument from a SubCommand's options by name.
+pub(crate) fn sub_string_arg<'a>(sub_value: &'a ResolvedValue<'a>, name: &str) -> Option<&'a str> {
+    let ResolvedValue::SubCommand(sub_opts) = sub_value else { return None };
+    sub_opts.iter().find_map(|o| match o {
+        ResolvedOption { name: n, value: ResolvedValue::String(s), .. } if *n == name => Some(*s),
+        _ => None,
+    })
+}
 
 // ---------------------------------------------------------------------------
 // Shared state

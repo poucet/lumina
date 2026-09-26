@@ -307,10 +307,14 @@ pub fn create_voice_service() -> VoiceService {
 
     #[cfg(feature = "pocket-tts")]
     {
-        let default_voice =
-            std::env::var("POCKET_TTS_VOICE").unwrap_or_else(|_| "alba".into());
-        match simply_voice::PocketTtsProvider::new(default_voice) {
+        // Custom voices (`<stem>.safetensors` / `<stem>.wav`) live in
+        // `<data>/models/voices/` and are offered by their stem.
+        match simply_voice::PocketTtsProvider::new("alba") {
             Ok(p) => {
+                let p = match config::PathManager::models_dir() {
+                    Some(models) => p.with_voice_dir(models.join("voices")),
+                    None => p,
+                };
                 tracing::info!("pocket-tts TTS loaded");
                 voice = voice.register_tts("pocket-tts", "Pocket TTS (local)", Arc::new(p));
             }

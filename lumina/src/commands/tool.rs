@@ -17,14 +17,14 @@ use async_trait::async_trait;
 use serenity::all::{
     ActionRowComponent, AutocompleteChoice, CommandInteraction, CommandOptionType,
     CreateAutocompleteResponse, CreateInteractionResponse, CreateInteractionResponseMessage,
-    InputTextStyle, ResolvedOption, ResolvedValue,
+    InputTextStyle,
 };
 use serenity::builder::{
     CreateActionRow, CreateCommand, CreateCommandOption, CreateEmbed, CreateInputText, CreateModal,
 };
 use std::time::Duration;
 
-use super::LuminaContext;
+use super::{sub_string_arg, LuminaContext};
 use crate::register_command;
 
 #[derive(Default)]
@@ -198,15 +198,6 @@ impl super::SlashCommand for Tool {
         ).await?;
         Ok(())
     }
-}
-
-/// Extract a String argument from a SubCommand's options by name.
-fn sub_string_arg<'a>(sub_value: &'a ResolvedValue<'a>, name: &str) -> Option<&'a str> {
-    let ResolvedValue::SubCommand(sub_opts) = sub_value else { return None };
-    sub_opts.iter().find_map(|o| match o {
-        ResolvedOption { name: n, value: ResolvedValue::String(s), .. } if *n == name => Some(*s),
-        _ => None,
-    })
 }
 
 async fn reply_ephemeral(lx: &LuminaContext, cmd: &CommandInteraction, content: &str) -> anyhow::Result<()> {

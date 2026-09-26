@@ -6,6 +6,10 @@
 # Only the `lumina` binary is built. It pulls in `simply-daemon` via the
 # default `embedded` feature, which hosts the daemon in-process and listens on
 # 127.0.0.1:9800 — never on a public interface (Caddy proxies the OAuth routes).
+# `pocket-tts` adds local text-to-speech on the CPU. Its model downloads from
+# Hugging Face into /root/.cache/huggingface on first start (bind-mounted by
+# docker-compose.yml so rebuilds keep it); custom voices go in
+# /data/models/voices/.
 
 # ---------------------------------------------------------------------------
 # Builder
@@ -30,7 +34,7 @@ ENV SKIP_ADMIN_BUILD=1
 # so a bare `--bin lumina` from the root won't find the lumina bin.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
-    cargo build --release -p lumina --bin lumina \
+    cargo build --release -p lumina --bin lumina --features pocket-tts \
     && cp target/release/lumina /usr/local/bin/lumina
 
 # ---------------------------------------------------------------------------
