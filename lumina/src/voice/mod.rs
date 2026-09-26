@@ -391,6 +391,13 @@ impl VoiceManager {
             if let Some(ref handle) = s.tts_task {
                 handle.abort();
             }
+            // The session's VoiceTick receiver is a global event on the call,
+            // which outlives the session when we stay in the channel. Left
+            // attached, a restarted session adds a second one and every
+            // utterance is transcribed twice.
+            if let Some(call) = self.songbird.get().and_then(|sb| sb.get(*guild_id)) {
+                call.lock().await.remove_all_global_events();
+            }
             tracing::info!(guild_id = %guild_id, "voice session stopped");
         }
         session
