@@ -35,7 +35,9 @@ ENV SKIP_ADMIN_BUILD=1
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release -p lumina --bin lumina --features pocket-tts \
-    && cp target/release/lumina /usr/local/bin/lumina
+    && cp target/release/lumina /usr/local/bin/lumina \
+    && ptts="$(sed -n '/^name = "pocket-tts"$/{n;s/^version = "\(.*\)"$/\1/p;}' Cargo.lock)" \
+    && cp -r /usr/local/cargo/registry/src/*/pocket-tts-"$ptts"/config /pocket-tts-config
 
 # ---------------------------------------------------------------------------
 # Runtime
@@ -47,6 +49,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/bin/lumina /usr/local/bin/lumina
+
+# pocket-tts reads its model config (config/<variant>.yaml) from its own
+# source dir, which only exists in the builder's cargo registry, or else from
+# ./config relative to the working directory. The working directory is /, so
+# the config goes in /config.
+COPY --from=builder /pocket-tts-config /config
 
 # All config + state (SQLite, vault, blob storage) lives under NOEMA_DATA_DIR,
 # which we mount as a volume so it survives container rebuilds.
