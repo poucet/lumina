@@ -8031,7 +8031,7 @@ dependencies = [
 [[package]]
 name = "simply-voice"
 version = "0.3.0"
-source = "git+https://github.com/poucet/simply-voice#391c6c54dec2edb5062d8d3ad8e32a6f9a1927a5"
+source = "git+https://github.com/poucet/simply-voice#edcf7f8be17ed887c0deff2b86d5425695917630"
 dependencies = [
  "anyhow",
  "async-trait",
