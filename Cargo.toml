@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["aurora", "aurora-orb", "commands", "config", "simply-core", "simply-core/llm", "simply-voice", "simply-terminal", "simply-terminal-skill", "simply-daemon", "simply-daemon/api", "simply-daemon/api/macros", "simply-rpc", "simply-rpc/macros", "noema/src-tauri", "mcp-gdocs", "lumina", "lumina/macros", "telegram-bot", "xtask"]
+members = ["commands", "config", "simply-core", "simply-core/llm", "simply-daemon", "simply-daemon/api", "simply-daemon/api/macros", "simply-rpc", "simply-rpc/macros", "noema/src-tauri", "mcp-gdocs", "lumina", "lumina/macros", "telegram-bot"]
 default-members = ["simply-daemon"]
 
 [workspace.package]
@@ -18,9 +18,7 @@ simply-daemon-api = { path = "simply-daemon/api" }
 skill-macros = { path = "simply-daemon/api/macros" }
 llm = { path = "simply-core/llm" }
 lumina-macros = { path = "lumina/macros" }
-simply-voice = { path = "simply-voice" }
-simply-terminal = { path = "simply-terminal" }
-simply-terminal-skill = { path = "simply-terminal-skill" }
+simply-voice = { git = "https://github.com/poucet/simply-voice" }
 mcp-gdocs = { path = "mcp-gdocs" }
 telegram-bot = { path = "telegram-bot" }
 simply-rpc-macros = { path = "simply-rpc/macros" }

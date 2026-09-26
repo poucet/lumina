@@ -11,7 +11,6 @@ path = "src/main.rs"
 [features]
 default = ["embedded"]
 embedded = ["dep:simply-daemon"]
-terminal = ["dep:simply-terminal-skill"]
 
 [dependencies]
 # Internal crates
@@ -21,7 +20,6 @@ simply-daemon-api = { workspace = true }
 simply-daemon = { workspace = true, optional = true }
 simply-rpc = { workspace = true }
 mcp-gdocs = { workspace = true, features = ["skill"] }
-simply-terminal-skill = { workspace = true, optional = true }
 
 # Discord
 serenity = { workspace = true }

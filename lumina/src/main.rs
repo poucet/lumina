@@ -164,15 +164,6 @@ async fn register_skills(daemon: &Arc<dyn Daemon>, discord: &mcp::DiscordSkill) 
     daemon.register_skill(Arc::new(discord.clone())).await?;
     tracing::info!("Discord skill registered with daemon");
 
-    // Shared interactive terminal sessions (claude/pi) — opt-in feature.
-    #[cfg(feature = "terminal")]
-    {
-        daemon
-            .register_skill(Arc::new(simply_terminal_skill::TerminalSkill::new(Arc::clone(daemon), simply_rpc::RequestContext::anonymous())))
-            .await?;
-        tracing::info!("Terminal skill registered with daemon");
-    }
-
     Ok(())
 }
 

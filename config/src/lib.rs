@@ -1,11 +1,9 @@
-pub mod aurora;
 pub mod crypto;
 pub mod lumina;
 pub mod paths;
 pub mod settings;
 pub mod telegram;
 
-pub use aurora::{AgentConfig, AudioConfig, AuroraConfig, EchoGate, OrbConfig};
 pub use crypto::{decrypt_string, encrypt_string};
 pub use lumina::{LuminaConfig, VoiceConfig};
 pub use paths::PathManager;
