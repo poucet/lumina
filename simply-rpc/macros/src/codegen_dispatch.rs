@@ -17,17 +17,6 @@ fn route_kind_tokens(method: &HttpMethod) -> TokenStream {
     }
 }
 
-/// Convert a parse-time HttpMethod to the runtime HttpMethod token (REST only).
-fn http_method_tokens(method: &HttpMethod) -> TokenStream {
-    match method {
-        HttpMethod::Get => quote! { ::simply_rpc::HttpMethod::Get },
-        HttpMethod::Post => quote! { ::simply_rpc::HttpMethod::Post },
-        HttpMethod::Put => quote! { ::simply_rpc::HttpMethod::Put },
-        HttpMethod::Delete => quote! { ::simply_rpc::HttpMethod::Delete },
-        HttpMethod::Stream => panic!("Stream is not an HttpMethod"),
-    }
-}
-
 /// Check if a return type is `BinaryResponse` (or `Result<BinaryResponse>`).
 fn is_binary_response_type(return_kind: &ReturnKind) -> bool {
     match return_kind {
@@ -389,12 +378,6 @@ fn generate_deser_and_args(method: &ParsedMethod) -> (TokenStream, Vec<TokenStre
     }
 
     (deser, call_args)
-}
-
-/// Check if a type is `Vec<u8>`.
-fn is_vec_u8(ty: &syn::Type) -> bool {
-    let s = quote! { #ty }.to_string().replace(' ', "");
-    s == "Vec<u8>"
 }
 
 /// Generate the body of `rest_dispatch_by_name` — a match on method name.
@@ -814,7 +797,7 @@ fn generate_dispatch_body(method: &ParsedMethod, call_args: &[TokenStream]) -> T
                 })
             }
         }
-        ReturnKind::StreamBidi { input_type, output_type } => {
+        ReturnKind::StreamBidi { input_type, output_type: _ } => {
             // Result<StreamHandle<T, U>> — create channels, return bidi stream
             // The service returns StreamHandle. We split it: the Receiver<U> goes
             // as the stream (server→client), and we create a json→T deserializer

@@ -665,32 +665,6 @@ async fn start_ws_test_server() -> (String, Arc<InMemoryChannels>) {
     (format!("http://127.0.0.1:{port}"), impl_)
 }
 
-/// Check if a path matches a template (simple segment comparison).
-fn path_matches(template: &str, path: &str) -> bool {
-    let t_segs: Vec<&str> = template.trim_start_matches('/').split('/').collect();
-    let p_segs: Vec<&str> = path.trim_start_matches('/').split('/').collect();
-    if t_segs.len() != p_segs.len() {
-        return false;
-    }
-    t_segs
-        .iter()
-        .zip(p_segs.iter())
-        .all(|(t, p)| t.starts_with('{') || t == p)
-}
-
-/// Extract named params from a path given a template.
-fn extract_params(template: &str, path: &str) -> std::collections::HashMap<String, String> {
-    let t_segs: Vec<&str> = template.trim_start_matches('/').split('/').collect();
-    let p_segs: Vec<&str> = path.trim_start_matches('/').split('/').collect();
-    let mut params = std::collections::HashMap::new();
-    for (t, p) in t_segs.iter().zip(p_segs.iter()) {
-        if t.starts_with('{') && t.ends_with('}') {
-            params.insert(t[1..t.len() - 1].to_string(), p.to_string());
-        }
-    }
-    params
-}
-
 // --- Raw HTTP tests (REST on a streaming trait) ---
 
 #[tokio::test]
@@ -865,15 +839,10 @@ async fn ws_real_websocket_open_and_receive() {
 
         // Forward events
         let mut rx = dr.streams.into_iter().next().unwrap();
-        loop {
-            match rx.recv().await {
-                Ok(event) => {
-                    let json = serde_json::to_string(&event).unwrap();
-                    if ws_tx.send(Message::Text(json.into())).await.is_err() {
-                        break;
-                    }
-                }
-                Err(_) => break,
+        while let Ok(event) = rx.recv().await {
+            let json = serde_json::to_string(&event).unwrap();
+            if ws_tx.send(Message::Text(json.into())).await.is_err() {
+                break;
             }
         }
     });

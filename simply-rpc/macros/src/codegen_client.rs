@@ -12,7 +12,7 @@ pub fn generate(parsed: &ParsedTrait) -> syn::Result<TokenStream> {
     let method_impls: Vec<TokenStream> = parsed
         .methods
         .iter()
-        .map(|m| generate_client_method(m))
+        .map(generate_client_method)
         .collect::<syn::Result<Vec<_>>>()?;
 
     Ok(quote! {
@@ -70,25 +70,6 @@ fn generate_client_method(method: &ParsedMethod) -> syn::Result<TokenStream> {
         };
         if let ReturnKind::StreamBidi { input_type, output_type } = &method.return_kind {
             let method_str = &method.method_name;
-            // URL construction uses just the path — any `?{foo}&{bar}` suffix
-            // is documentation; real query params are serialised by the
-            // transport from the remaining call args.
-            let path_template = &endpoint.match_path;
-
-            let path_expr = if endpoint.path_params.is_empty() {
-                quote! { #path_template.to_string() }
-            } else {
-                let mut format_str = path_template.clone();
-                let mut format_args = Vec::new();
-                for param_name in &endpoint.path_params {
-                    let placeholder = format!("{{{param_name}}}");
-                    format_str = format_str.replace(&placeholder, "{}");
-                    let param_ident = format_ident!("{}", param_name);
-                    format_args.push(quote! { #param_ident });
-                }
-                quote! { format!(#format_str, #(#format_args),*) }
-            };
-
             let (serialize, rpc_params) = generate_serialize(method);
 
             return Ok(quote! {
@@ -331,7 +312,7 @@ fn generate_client_body(
                     .unwrap_or_default()
             }
         }
-        ReturnKind::StreamTuple { value_type, stream_type } => {
+        ReturnKind::StreamTuple { value_type, stream_type: _ } => {
             // Result<(T, Stream)> — RPC returns T, then register stream for events.
             // Bridge: mpsc::Receiver<Value> → deserialize → broadcast::Sender<Event> → broadcast::Receiver
             quote! {
@@ -350,7 +331,7 @@ fn generate_client_body(
                 Ok((__value, __broadcast_rx))
             }
         }
-        ReturnKind::StreamBare { stream_type } => {
+        ReturnKind::StreamBare { stream_type: _ } => {
             quote! {
                 #serialize
                 self.0.rpc_call(#method_str, #rpc_params, #ctx_expr).await?;

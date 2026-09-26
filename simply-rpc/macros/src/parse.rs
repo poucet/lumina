@@ -42,6 +42,7 @@ pub struct RestEndpoint {
     /// The original template including any `?{…}&{…}` suffix. Kept for docs
     /// and for client URL construction (which substitutes `{path}` params
     /// and then appends query params from the call args).
+    #[allow(dead_code)] // parsed route metadata, kept for docs and tooling
     pub path_template: String,
     /// Just the path portion, with `?…` stripped. This is what the router
     /// (matchit) sees and what goes into `RouteMeta.path_template` at
@@ -52,6 +53,7 @@ pub struct RestEndpoint {
     /// Parameter names declared in the explicit `?{a}&{b}…` suffix, in
     /// declaration order. Documentation / tooling; the server still finds
     /// them via the URL query string at dispatch time.
+    #[allow(dead_code)] // parsed route metadata, kept for docs and tooling
     pub query_params: Vec<String>,
 }
 
@@ -71,6 +73,7 @@ pub enum RpcKind {
 pub struct ParsedParam {
     pub name: Ident,
     /// The type as written in the trait (may be `&T` or `&str`).
+    #[allow(dead_code)] // kept alongside `owned_type`; codegen does not read it today
     pub ty: Type,
     /// Whether the param is a reference (`&T` or `&str`).
     pub is_ref: bool,
@@ -174,12 +177,6 @@ impl ParsedTrait {
             &format!("{}Service", self.trait_name),
             self.trait_name.span(),
         )
-    }
-
-    /// Client macro name: e.g. `impl_remote_session_api` (kept for backward compat)
-    pub fn client_macro_name(&self) -> Ident {
-        let snake = to_snake_case(&self.trait_name.to_string());
-        Ident::new(&format!("impl_remote_{snake}"), self.trait_name.span())
     }
 
     /// Remote client struct name: e.g. `RemoteSessionApi`
@@ -526,19 +523,6 @@ fn to_snake_case(s: &str) -> String {
 /// Convert PascalCase to UPPER_SNAKE_CASE.
 fn to_upper_snake_case(s: &str) -> String {
     to_snake_case(s).to_uppercase()
-}
-
-/// Convert snake_case to PascalCase.
-pub fn to_pascal_case(s: &str) -> String {
-    s.split('_')
-        .map(|word| {
-            let mut chars = word.chars();
-            match chars.next() {
-                None => String::new(),
-                Some(c) => c.to_uppercase().chain(chars).collect(),
-            }
-        })
-        .collect()
 }
 
 #[cfg(test)]
