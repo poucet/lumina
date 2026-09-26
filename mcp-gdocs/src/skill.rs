@@ -226,12 +226,14 @@ impl Skill for GDocsSkill {
 
 // No access_token in tool schemas — daemon injects it via RequestContext.tokens
 #[derive(schemars::JsonSchema)]
+#[allow(dead_code)] // schema-only: fields describe the tool input, arguments are read as JSON
 struct ImportToolInput {
     /// The Google Doc ID to import.
     doc_id: String,
 }
 
 #[derive(schemars::JsonSchema)]
+#[allow(dead_code)] // schema-only: fields describe the tool input, arguments are read as JSON
 struct ListToolInput {
     /// Optional search query to filter documents.
     query: Option<String>,

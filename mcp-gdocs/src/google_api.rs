@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug, trace};
+use tracing::trace;
 
 const DRIVE_API_BASE: &str = "https://www.googleapis.com/drive/v3";
 const DOCS_API_BASE: &str = "https://docs.googleapis.com/v1";
@@ -426,7 +426,7 @@ impl GoogleDocsClient {
 
         // Collect all inline objects from all tabs for image fetching
         let mut all_inline_objects: HashMap<String, String> = HashMap::new();
-        self.collect_inline_objects(&doc.tabs, &mut all_inline_objects);
+        Self::collect_inline_objects(&doc.tabs, &mut all_inline_objects);
 
         tracing::info!("extract_document: Found {} inline objects", all_inline_objects.len());
 
@@ -468,7 +468,6 @@ impl GoogleDocsClient {
 
     /// Collect all inline object URIs from tabs recursively
     fn collect_inline_objects(
-        &self,
         tabs: &[DocsTab],
         objects: &mut HashMap<String, String>,
     ) {
@@ -487,7 +486,7 @@ impl GoogleDocsClient {
                 }
             }
             // Recurse into child tabs
-            self.collect_inline_objects(&tab.child_tabs, objects);
+            Self::collect_inline_objects(&tab.child_tabs, objects);
         }
     }
 

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 /// MCP Server for Google Docs
 #[derive(Clone)]
@@ -189,207 +189,203 @@ impl ServerHandler for GoogleDocsServer {
             )
     }
 
-    fn list_tools(
+    async fn list_tools(
         &self,
         _request: Option<PaginatedRequestParams>,
         context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ListToolsResult, McpError>> + Send + '_ {
-        async move {
-            // Check for auth header on list_tools too (first call after connect)
-            if let Some(parts) = context.extensions.get::<http::request::Parts>() {
-                if let Some(auth_header) = parts.headers.get(http::header::AUTHORIZATION) {
-                    if let Ok(auth_str) = auth_header.to_str() {
-                        info!("list_tools: found Authorization header, setting access token");
-                        self.set_access_token(auth_str.to_string()).await;
-                    }
-                } else {
-                    info!("list_tools: no Authorization header in request");
+    ) -> Result<ListToolsResult, McpError> {
+        // Check for auth header on list_tools too (first call after connect)
+        if let Some(parts) = context.extensions.get::<http::request::Parts>() {
+            if let Some(auth_header) = parts.headers.get(http::header::AUTHORIZATION) {
+                if let Ok(auth_str) = auth_header.to_str() {
+                    info!("list_tools: found Authorization header, setting access token");
+                    self.set_access_token(auth_str.to_string()).await;
                 }
             } else {
-                info!("list_tools: no HTTP request parts in context");
+                info!("list_tools: no Authorization header in request");
             }
-            Ok(ListToolsResult { meta: None, next_cursor: None, tools: Self::get_tools() })
+        } else {
+            info!("list_tools: no HTTP request parts in context");
         }
+        Ok(ListToolsResult { meta: None, next_cursor: None, tools: Self::get_tools() })
     }
 
-    fn call_tool(
+    async fn call_tool(
         &self,
         request: CallToolRequestParams,
         context: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<CallToolResult, McpError>> + Send + '_ {
-        async move {
-            let name = request.name.as_ref();
-            let arguments = request.arguments.clone().unwrap_or_default();
+    ) -> Result<CallToolResult, McpError> {
+        let name = request.name.as_ref();
+        let arguments = request.arguments.clone().unwrap_or_default();
 
-            info!("Calling tool: {} with args: {:?}", name, arguments);
+        info!("Calling tool: {} with args: {:?}", name, arguments);
 
-            // Try to extract Authorization header from HTTP request parts
-            if let Some(parts) = context.extensions.get::<http::request::Parts>() {
-                info!(tool = %name, "call_tool: HTTP parts available, checking auth header");
-                if let Some(auth_header) = parts.headers.get(http::header::AUTHORIZATION) {
-                    if let Ok(auth_str) = auth_header.to_str() {
-                        info!(tool = %name, "call_tool: found Authorization header, setting token");
-                        self.set_access_token(auth_str.to_string()).await;
-                    }
-                } else {
-                    info!(tool = %name, "call_tool: no Authorization header in request");
+        // Try to extract Authorization header from HTTP request parts
+        if let Some(parts) = context.extensions.get::<http::request::Parts>() {
+            info!(tool = %name, "call_tool: HTTP parts available, checking auth header");
+            if let Some(auth_header) = parts.headers.get(http::header::AUTHORIZATION) {
+                if let Ok(auth_str) = auth_header.to_str() {
+                    info!(tool = %name, "call_tool: found Authorization header, setting token");
+                    self.set_access_token(auth_str.to_string()).await;
                 }
             } else {
-                info!(tool = %name, "call_tool: no HTTP parts in context extensions");
+                info!(tool = %name, "call_tool: no Authorization header in request");
             }
+        } else {
+            info!(tool = %name, "call_tool: no HTTP parts in context extensions");
+        }
 
-            let client = match self.get_client().await {
-                Some(c) => {
-                    tracing::info!(tool = %name, "tool call: authenticated, proceeding");
-                    c
-                }
-                None => {
-                    tracing::warn!(tool = %name, "tool call: NOT authenticated, no access token set");
-                    return Ok(CallToolResult::error(vec![Content::text(
-                        "Error: Not authenticated. Please complete OAuth flow first.",
-                    )]));
-                }
-            };
+        let client = match self.get_client().await {
+            Some(c) => {
+                tracing::info!(tool = %name, "tool call: authenticated, proceeding");
+                c
+            }
+            None => {
+                tracing::warn!(tool = %name, "tool call: NOT authenticated, no access token set");
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Error: Not authenticated. Please complete OAuth flow first.",
+                )]));
+            }
+        };
 
-            match name {
-                "gdocs_list" => {
-                    let args: ListArgs = match serde_json::from_value(serde_json::Value::Object(arguments)) {
-                        Ok(a) => a,
-                        Err(e) => {
-                            return Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Invalid arguments: {}",
-                                e
-                            ))]));
-                        }
-                    };
+        match name {
+            "gdocs_list" => {
+                let args: ListArgs = match serde_json::from_value(serde_json::Value::Object(arguments)) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        return Ok(CallToolResult::error(vec![Content::text(format!(
+                            "Invalid arguments: {}",
+                            e
+                        ))]));
+                    }
+                };
 
-                    match client
-                        .list_documents(args.query.as_deref(), args.limit.unwrap_or(20))
-                        .await
-                    {
-                        Ok(files) => {
-                            let result: Vec<serde_json::Value> = files
-                                .into_iter()
-                                .map(|f| {
-                                    json!({
-                                        "id": f.id,
-                                        "name": f.name,
-                                        "modified_time": f.modified_time,
-                                        "created_time": f.created_time,
-                                    })
+                match client
+                    .list_documents(args.query.as_deref(), args.limit.unwrap_or(20))
+                    .await
+                {
+                    Ok(files) => {
+                        let result: Vec<serde_json::Value> = files
+                            .into_iter()
+                            .map(|f| {
+                                json!({
+                                    "id": f.id,
+                                    "name": f.name,
+                                    "modified_time": f.modified_time,
+                                    "created_time": f.created_time,
                                 })
-                                .collect();
+                            })
+                            .collect();
 
-                            Ok(CallToolResult::success(vec![Content::text(
-                                serde_json::to_string_pretty(&result).unwrap_or_default(),
-                            )]))
-                        }
-                        Err(e) => {
-                            error!("Error listing documents: {}", e);
-                            Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Error listing documents: {}",
-                                e
-                            ))]))
-                        }
+                        Ok(CallToolResult::success(vec![Content::text(
+                            serde_json::to_string_pretty(&result).unwrap_or_default(),
+                        )]))
+                    }
+                    Err(e) => {
+                        error!("Error listing documents: {}", e);
+                        Ok(CallToolResult::error(vec![Content::text(format!(
+                            "Error listing documents: {}",
+                            e
+                        ))]))
                     }
                 }
-
-                "gdocs_extract" => {
-                    let args: ExtractArgs = match serde_json::from_value(serde_json::Value::Object(arguments)) {
-                        Ok(a) => a,
-                        Err(e) => {
-                            return Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Invalid arguments: {}",
-                                e
-                            ))]));
-                        }
-                    };
-
-                    match client.extract_document(&args.doc_id).await {
-                        Ok(doc) => {
-                            let response: ExtractResponse = doc.into();
-                            Ok(CallToolResult::success(vec![Content::text(
-                                serde_json::to_string(&response).unwrap_or_default(),
-                            )]))
-                        }
-                        Err(e) => {
-                            error!("Error extracting document: {}", e);
-                            Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Error extracting document: {}",
-                                e
-                            ))]))
-                        }
-                    }
-                }
-
-                "gdocs_get_content" => {
-                    let args: GetContentArgs = match serde_json::from_value(serde_json::Value::Object(arguments)) {
-                        Ok(a) => a,
-                        Err(e) => {
-                            return Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Invalid arguments: {}",
-                                e
-                            ))]));
-                        }
-                    };
-
-                    let format = args.format.as_deref().unwrap_or("markdown");
-                    let result = if format == "text" {
-                        client.get_document_as_text(&args.doc_id).await
-                    } else {
-                        client.get_document_as_markdown(&args.doc_id).await
-                    };
-
-                    match result {
-                        Ok(content) => Ok(CallToolResult::success(vec![Content::text(content)])),
-                        Err(e) => {
-                            error!("Error getting document content: {}", e);
-                            Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Error getting document content: {}",
-                                e
-                            ))]))
-                        }
-                    }
-                }
-
-                "gdocs_get_info" => {
-                    let args: GetInfoArgs = match serde_json::from_value(serde_json::Value::Object(arguments)) {
-                        Ok(a) => a,
-                        Err(e) => {
-                            return Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Invalid arguments: {}",
-                                e
-                            ))]));
-                        }
-                    };
-
-                    match client.get_document_info(&args.doc_id).await {
-                        Ok(info) => {
-                            let result = json!({
-                                "id": info.id,
-                                "title": info.title,
-                                "revision_id": info.revision_id,
-                            });
-
-                            Ok(CallToolResult::success(vec![Content::text(
-                                serde_json::to_string_pretty(&result).unwrap_or_default(),
-                            )]))
-                        }
-                        Err(e) => {
-                            error!("Error getting document info: {}", e);
-                            Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Error getting document info: {}",
-                                e
-                            ))]))
-                        }
-                    }
-                }
-
-                _ => Ok(CallToolResult::error(vec![Content::text(format!(
-                    "Unknown tool: {}",
-                    name
-                ))])),
             }
+
+            "gdocs_extract" => {
+                let args: ExtractArgs = match serde_json::from_value(serde_json::Value::Object(arguments)) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        return Ok(CallToolResult::error(vec![Content::text(format!(
+                            "Invalid arguments: {}",
+                            e
+                        ))]));
+                    }
+                };
+
+                match client.extract_document(&args.doc_id).await {
+                    Ok(doc) => {
+                        let response: ExtractResponse = doc.into();
+                        Ok(CallToolResult::success(vec![Content::text(
+                            serde_json::to_string(&response).unwrap_or_default(),
+                        )]))
+                    }
+                    Err(e) => {
+                        error!("Error extracting document: {}", e);
+                        Ok(CallToolResult::error(vec![Content::text(format!(
+                            "Error extracting document: {}",
+                            e
+                        ))]))
+                    }
+                }
+            }
+
+            "gdocs_get_content" => {
+                let args: GetContentArgs = match serde_json::from_value(serde_json::Value::Object(arguments)) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        return Ok(CallToolResult::error(vec![Content::text(format!(
+                            "Invalid arguments: {}",
+                            e
+                        ))]));
+                    }
+                };
+
+                let format = args.format.as_deref().unwrap_or("markdown");
+                let result = if format == "text" {
+                    client.get_document_as_text(&args.doc_id).await
+                } else {
+                    client.get_document_as_markdown(&args.doc_id).await
+                };
+
+                match result {
+                    Ok(content) => Ok(CallToolResult::success(vec![Content::text(content)])),
+                    Err(e) => {
+                        error!("Error getting document content: {}", e);
+                        Ok(CallToolResult::error(vec![Content::text(format!(
+                            "Error getting document content: {}",
+                            e
+                        ))]))
+                    }
+                }
+            }
+
+            "gdocs_get_info" => {
+                let args: GetInfoArgs = match serde_json::from_value(serde_json::Value::Object(arguments)) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        return Ok(CallToolResult::error(vec![Content::text(format!(
+                            "Invalid arguments: {}",
+                            e
+                        ))]));
+                    }
+                };
+
+                match client.get_document_info(&args.doc_id).await {
+                    Ok(info) => {
+                        let result = json!({
+                            "id": info.id,
+                            "title": info.title,
+                            "revision_id": info.revision_id,
+                        });
+
+                        Ok(CallToolResult::success(vec![Content::text(
+                            serde_json::to_string_pretty(&result).unwrap_or_default(),
+                        )]))
+                    }
+                    Err(e) => {
+                        error!("Error getting document info: {}", e);
+                        Ok(CallToolResult::error(vec![Content::text(format!(
+                            "Error getting document info: {}",
+                            e
+                        ))]))
+                    }
+                }
+            }
+
+            _ => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Unknown tool: {}",
+                name
+            ))])),
         }
     }
 }
