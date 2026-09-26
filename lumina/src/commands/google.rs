@@ -12,7 +12,6 @@ use serenity::all::{
     ResolvedOption, ResolvedValue,
 };
 use serenity::builder::{CreateCommand, CreateCommandOption, CreateEmbed};
-use simply_daemon_api::Daemon;
 
 use super::LuminaContext;
 use crate::register_command;

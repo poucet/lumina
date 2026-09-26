@@ -185,7 +185,6 @@ async fn process_chat(lx: &LuminaContext, msg: &Message) -> anyhow::Result<()> {
 /// the caller can both render a debug embed and inject the full block
 /// into the prompt in a single pass.
 pub struct RagHit {
-    pub entity_id: String,
     pub entity_kind: String,
     pub title: String,
     pub body: String,
@@ -278,7 +277,6 @@ async fn build_rag_context(
         let body = ewc.content.and_then(|c| c.content_markdown).unwrap_or_default();
         if body.trim().is_empty() { continue; }
         rag_hits.push(RagHit {
-            entity_id: ewc.summary.id,
             entity_kind: kind,
             title: ewc.summary.title.unwrap_or_else(|| "(untitled)".to_string()),
             body,
@@ -575,9 +573,7 @@ async fn resolve_model(lx: &LuminaContext, msg: &Message) -> Option<String> {
 
     let candidate = from_topic.or(config_default.clone());
 
-    let Some(model_id) = candidate else {
-        return None;
-    };
+    let model_id = candidate?;
 
     // Validate the model exists
     if let Ok(models) = lx.daemon.model().list_models().await {

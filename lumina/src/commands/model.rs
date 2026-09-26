@@ -5,11 +5,11 @@ use serenity::all::{
     AutocompleteChoice, CommandInteraction, CreateAutocompleteResponse,
     CreateInteractionResponse, CreateInteractionResponseMessage,
 };
-use simply_daemon_api::ModelApi;
 
 use super::LuminaContext;
 
 #[command_group(description = "LLM model management")]
+#[allow(clippy::module_inception)] // command_group names the slash command after the module
 mod model {
     use super::*;
 

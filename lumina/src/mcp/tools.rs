@@ -20,37 +20,6 @@ use std::collections::HashMap;
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DISCORD_EPOCH_MS: u64 = 1_420_070_400_000;
-
-fn snowflake_hours_ago(hours: u64) -> serenity::model::id::MessageId {
-    let now_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
-    let target_ms = now_ms.saturating_sub(hours * 3_600_000);
-    serenity::model::id::MessageId::new((target_ms.saturating_sub(DISCORD_EPOCH_MS)) << 22)
-}
-
-async fn fetch_messages_since(
-    http: &serenity::http::Http,
-    channel_id: SerenityChannelId,
-    after: serenity::model::id::MessageId,
-    max: usize,
-) -> anyhow::Result<Vec<serenity::model::channel::Message>> {
-    let mut all = Vec::new();
-    let mut cursor = after;
-    loop {
-        let batch = channel_id
-            .messages(http, GetMessages::new().after(cursor).limit(100))
-            .await?;
-        if batch.is_empty() { break; }
-        cursor = batch.iter().map(|m| m.id).max().unwrap_or(cursor);
-        all.extend(batch);
-        if all.len() >= max { all.truncate(max); break; }
-    }
-    Ok(all)
-}
-
 fn build_embed(title: Option<&str>, desc: Option<&str>, color: Option<&str>) -> Option<CreateEmbed> {
     if title.is_none() && desc.is_none() { return None; }
     let mut embed = CreateEmbed::new();

@@ -16,7 +16,7 @@ use std::sync::{Arc, OnceLock};
 use serenity::all::ShardMessenger;
 use serenity::model::id::{ChannelId, GuildId};
 use simply_daemon_api::{
-    CreateSessionOptions, Daemon, Persistence, SeedMessage, VoiceApi,
+    CreateSessionOptions, Daemon, Persistence, SeedMessage,
 };
 use simply_rpc::RequestContext;
 use songbird::{Call, Songbird};
@@ -279,6 +279,7 @@ impl VoiceManager {
     }
 
     /// Start a voice session and register the audio receive handler on the songbird Call.
+    #[allow(clippy::too_many_arguments)] // flat session parameters, forwarded from the slash commands
     pub async fn start_session(
         self: &Arc<Self>,
         guild_id: GuildId,

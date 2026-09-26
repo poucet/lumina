@@ -20,7 +20,7 @@ use serenity::prelude::*;
 use songbird::SerenityInit;
 use songbird::Config as SongbirdConfig;
 use songbird::driver::{DecodeMode, DecodeConfig, Channels, SampleRate};
-use simply_daemon_api::{Daemon, Skill};
+use simply_daemon_api::Daemon;
 
 pub struct McpServerKey;
 impl TypeMapKey for McpServerKey { type Value = mcp::DiscordSkill; }
@@ -337,24 +337,21 @@ impl EventHandler for Handler {
         if msg.content.starts_with('.') {
             let data = ctx.data.read().await;
             let cfg = data.get::<ConfigKey>().expect("ConfigKey missing");
-            let is_owner = cfg.discord.owner_id.map_or(false, |id| msg.author.id.get() == id);
+            let is_owner = cfg.discord.owner_id.is_some_and(|id| msg.author.id.get() == id);
             if is_owner {
-                match msg.content.as_str() {
-                    ".sync" => {
-                        let registry = data.get::<CommandRegistry>().expect("CommandRegistry missing");
-                        let definitions = registry.definitions();
-                        drop(data);
-                        let mut ok = 0usize;
-                        let mut fail = 0usize;
-                        for &guild_id in &self.guild_ids {
-                            match guild_id.set_commands(&ctx.http, definitions.clone()).await {
-                                Ok(_) => ok += 1,
-                                Err(e) => { tracing::error!(guild_id = %guild_id, error = %e, "sync failed"); fail += 1; }
-                            }
+                if msg.content.as_str() == ".sync" {
+                    let registry = data.get::<CommandRegistry>().expect("CommandRegistry missing");
+                    let definitions = registry.definitions();
+                    drop(data);
+                    let mut ok = 0usize;
+                    let mut fail = 0usize;
+                    for &guild_id in &self.guild_ids {
+                        match guild_id.set_commands(&ctx.http, definitions.clone()).await {
+                            Ok(_) => ok += 1,
+                            Err(e) => { tracing::error!(guild_id = %guild_id, error = %e, "sync failed"); fail += 1; }
                         }
-                        let _ = msg.reply(&ctx.http, format!("Synced commands to {ok} guild(s), {fail} failed.")).await;
                     }
-                    _ => {}
+                    let _ = msg.reply(&ctx.http, format!("Synced commands to {ok} guild(s), {fail} failed.")).await;
                 }
                 return;
             }

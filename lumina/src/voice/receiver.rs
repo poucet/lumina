@@ -41,7 +41,7 @@ impl VoiceEventHandler for VoiceReceiver {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
         if let EventContext::VoiceTick(tick) = ctx {
             let mut combined: Vec<i16> = Vec::new();
-            for (_ssrc, data) in &tick.speaking {
+            for data in tick.speaking.values() {
                 if let Some(decoded) = data.decoded_voice.as_ref() {
                     if combined.is_empty() {
                         combined.extend_from_slice(decoded);

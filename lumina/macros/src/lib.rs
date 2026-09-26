@@ -421,7 +421,6 @@ struct SubCommandInfo {
     sub_name: String,
     description: String,
     params: Vec<ParamInfo>,
-    has_autocomplete_params: bool,
 }
 
 fn generate_command_group(attrs: CommandAttrs, module: ItemMod) -> syn::Result<TokenStream2> {
@@ -454,7 +453,6 @@ fn generate_command_group(attrs: CommandAttrs, module: ItemMod) -> syn::Result<T
             if let Some(attr) = sub_attr {
                 let sub_attrs: CommandAttrs = attr.parse_args()?;
                 let params = parse_params(func)?;
-                let has_autocomplete_params = params.iter().any(|p| p.autocomplete);
                 let sub_name = sub_attrs
                     .name
                     .unwrap_or_else(|| func.sig.ident.to_string().replace('_', "-"));
@@ -463,7 +461,6 @@ fn generate_command_group(attrs: CommandAttrs, module: ItemMod) -> syn::Result<T
                     sub_name,
                     description: sub_attrs.description,
                     params,
-                    has_autocomplete_params,
                 });
             }
         }

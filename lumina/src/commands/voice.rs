@@ -13,6 +13,7 @@ use super::LuminaContext;
 use crate::voice::{VoiceManagerKey, VoiceMode};
 
 #[lumina_macros::command_group(description = "Voice channel commands")]
+#[allow(clippy::module_inception)] // command_group names the slash command after the module
 mod voice {
     use super::*;
 

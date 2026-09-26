@@ -239,13 +239,13 @@ pub async fn render_tool_result_to_channel(
             ToolResultContent::Text { text } => text_parts.push(text.as_str()),
             ToolResultContent::Image { data, mime_type } => {
                 if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(data) {
-                    let ext = mime_type.split('/').last().unwrap_or("png");
+                    let ext = mime_type.split('/').next_back().unwrap_or("png");
                     attachments.push(CreateAttachment::bytes(bytes, format!("asset.{ext}")));
                 }
             }
             ToolResultContent::Audio { data, mime_type } => {
                 if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(data) {
-                    let ext = mime_type.split('/').last().unwrap_or("wav");
+                    let ext = mime_type.split('/').next_back().unwrap_or("wav");
                     attachments.push(CreateAttachment::bytes(bytes, format!("audio.{ext}")));
                 }
             }

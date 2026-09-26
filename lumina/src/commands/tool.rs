@@ -20,10 +20,8 @@ use serenity::all::{
     InputTextStyle, ResolvedOption, ResolvedValue,
 };
 use serenity::builder::{
-    CreateActionRow, CreateCommand, CreateCommandOption, CreateEmbed, CreateInputText,
-    CreateMessage, CreateModal,
+    CreateActionRow, CreateCommand, CreateCommandOption, CreateEmbed, CreateInputText, CreateModal,
 };
-use simply_daemon_api::{Daemon, McpApi, SkillsApi};
 use std::time::Duration;
 
 use super::LuminaContext;

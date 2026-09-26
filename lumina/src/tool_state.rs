@@ -70,8 +70,7 @@ impl ToolStateStore {
             return Ok(HashMap::new());
         }
         let conn = self.conn.lock().unwrap();
-        let placeholders = std::iter::repeat("?")
-            .take(message_ids.len())
+        let placeholders = std::iter::repeat_n("?", message_ids.len())
             .collect::<Vec<_>>()
             .join(",");
         let sql = format!(
@@ -88,10 +87,8 @@ impl ToolStateStore {
                 Ok((id as u64, (kind, payload)))
             },
         )?;
-        for r in rows {
-            if let Ok((id, kv)) = r {
-                out.insert(id, kv);
-            }
+        for (id, kv) in rows.flatten() {
+            out.insert(id, kv);
         }
         Ok(out)
     }
