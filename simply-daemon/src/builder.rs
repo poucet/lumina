@@ -295,8 +295,7 @@ pub fn create_voice_service() -> VoiceService {
     // failure rather than taking the daemon down.
     #[cfg(feature = "kyutai")]
     {
-        let hf_repo = std::env::var("KYUTAI_STT_REPO").ok();
-        match simply_voice::KyutaiSttProvider::new(hf_repo, false) {
+        match simply_voice::KyutaiSttProvider::new(None, false) {
             Ok(p) => {
                 tracing::info!("kyutai STT loaded");
                 voice = voice.register_stt("kyutai", "Kyutai STT (local)", Arc::new(p));

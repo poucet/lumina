@@ -13,6 +13,8 @@ default = ["embedded"]
 embedded = ["dep:simply-daemon"]
 # Local pocket-tts voices in the embedded daemon.
 pocket-tts = ["simply-daemon/pocket-tts"]
+# Local Kyutai streaming STT in the embedded daemon.
+kyutai = ["simply-daemon/kyutai"]
 
 [dependencies]
 # Internal crates

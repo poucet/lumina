@@ -6,7 +6,8 @@
 # Only the `lumina` binary is built. It pulls in `simply-daemon` via the
 # default `embedded` feature, which hosts the daemon in-process and listens on
 # 127.0.0.1:9800 — never on a public interface (Caddy proxies the OAuth routes).
-# `pocket-tts` adds local text-to-speech on the CPU. Its model downloads from
+# `kyutai` adds local streaming speech-to-text (about 2 GB of weights).
+# `pocket-tts` adds local text-to-speech on the CPU. Both models download from
 # Hugging Face into /root/.cache/huggingface on first start (bind-mounted by
 # docker-compose.yml so rebuilds keep it); custom voices go in
 # /data/models/voices/.
@@ -34,7 +35,7 @@ ENV SKIP_ADMIN_BUILD=1
 # so a bare `--bin lumina` from the root won't find the lumina bin.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
-    cargo build --release -p lumina --bin lumina --features pocket-tts \
+    cargo build --release -p lumina --bin lumina --features pocket-tts,kyutai \
     && cp target/release/lumina /usr/local/bin/lumina \
     && ptts="$(sed -n '/^name = "pocket-tts"$/{n;s/^version = "\(.*\)"$/\1/p;}' Cargo.lock)" \
     && cp -r /usr/local/cargo/registry/src/*/pocket-tts-"$ptts"/config /pocket-tts-config
