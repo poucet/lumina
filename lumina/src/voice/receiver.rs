@@ -13,6 +13,7 @@ use simply_voice::{AudioChunk, VoiceEvent, VoiceInput};
 use songbird::{Event, EventContext, EventHandler as VoiceEventHandler};
 use tokio::sync::mpsc;
 
+use super::health::{InFlight, Stage, VoiceHealth};
 use super::VoiceMode;
 
 /// Flip on to get the same tool-call/result embeds in voice that chat
@@ -28,11 +29,12 @@ fn show_tool_activity() -> bool {
 /// Songbird event handler that receives decoded audio and sends to daemon STT.
 pub struct VoiceReceiver {
     stt_input: mpsc::Sender<VoiceInput>,
+    health: Arc<VoiceHealth>,
 }
 
 impl VoiceReceiver {
-    pub fn new(stt_input: mpsc::Sender<VoiceInput>) -> Self {
-        Self { stt_input }
+    pub fn new(stt_input: mpsc::Sender<VoiceInput>, health: Arc<VoiceHealth>) -> Self {
+        Self { stt_input, health }
     }
 }
 
@@ -56,8 +58,12 @@ impl VoiceEventHandler for VoiceReceiver {
             }
             if !combined.is_empty() {
                 let pcm16: Vec<u8> = combined.iter().flat_map(|s| s.to_le_bytes()).collect();
-                // try_send so we never block the songbird event loop.
-                let _ = self.stt_input.try_send(VoiceInput::Audio(AudioChunk::new(pcm16)));
+                // try_send so we never block the songbird event loop. A full
+                // channel means STT is not keeping up: count it as dropped.
+                match self.stt_input.try_send(VoiceInput::Audio(AudioChunk::new(pcm16))) {
+                    Ok(()) => self.health.record(Stage::Rx),
+                    Err(_) => self.health.record_drop(Stage::Rx),
+                }
             }
         }
         None
@@ -146,6 +152,7 @@ pub fn spawn_event_handler(
     http: Arc<serenity::http::Http>,
     voice_mgr: Arc<super::VoiceManager>,
     has_tts: bool,
+    health: Arc<VoiceHealth>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         // Welcome greeting — `play_tts` is already fire-and-forget and
@@ -156,7 +163,24 @@ pub fn spawn_event_handler(
             }
         }
 
+        // STT is in flight from `Transcribing` until the next STT event.
+        // The daemon's STT loop is serial, so a new `Listening` also means
+        // the previous transcription returned (possibly empty, which emits
+        // nothing). Dropping the guard ends the flight.
+        let mut stt_flight: Option<InFlight> = None;
         while let Some(event) = stt_events.recv().await {
+            match &event {
+                VoiceEvent::Transcribing => {
+                    drop(stt_flight.take());
+                    stt_flight = Some(health.begin(Stage::Stt));
+                }
+                VoiceEvent::UserTranscript(_) => {
+                    drop(stt_flight.take());
+                    health.record(Stage::Stt);
+                }
+                VoiceEvent::Listening | VoiceEvent::Error(_) => drop(stt_flight.take()),
+                _ => {}
+            }
             match event {
                 VoiceEvent::UserTranscript(text) => match mode {
                     VoiceMode::Transcribe => {
@@ -175,7 +199,9 @@ pub fn spawn_event_handler(
                         };
 
                         let (response, daemon_session) = if let Some(mut ds) = daemon_session {
+                            let turn = health.begin(Stage::Llm);
                             let r = process_llm_turn(&mut ds, &text, text_channel, &http, &voice_mgr).await;
+                            turn.done();
                             (r, Some(ds))
                         } else {
                             (None, None)

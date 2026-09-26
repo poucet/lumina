@@ -22,3 +22,7 @@ history_limit = 1000
 
 # TTS voice ID — use /voice voice to list available voices
 # tts_voice = ""
+
+# Seconds a voice stage (stt, llm, tts, playback) may stay in flight before
+# the watchdog DMs the owner
+# watchdog_secs = 30

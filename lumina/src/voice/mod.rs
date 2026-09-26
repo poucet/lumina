@@ -7,8 +7,13 @@
 //!   → daemon STT stream (VoiceInput::Audio)
 //!   → receive VoiceEvent::UserTranscript
 //!   → post to text channel (transcribe) or send to session + TTS (listen)
+//!
+//! Each stage records heartbeats in a per-guild `health::VoiceHealth`;
+//! `watchdog` DMs the owner when one stays in flight too long.
 
+pub mod health;
 mod receiver;
+mod watchdog;
 
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
@@ -21,6 +26,8 @@ use simply_daemon_api::{
 use simply_rpc::RequestContext;
 use songbird::{Call, Songbird};
 use tokio::sync::Mutex;
+
+use health::{Stage, VoiceHealth};
 
 /// System prompt used when an agent joins voice in Listen mode.
 /// Kept in a separate markdown file so it can be edited without recompiling
@@ -93,6 +100,10 @@ pub struct VoiceManager {
     /// background voice tasks can drive interactive paginator buttons on
     /// their own tool-result messages without needing a `LuminaContext`.
     shard: OnceLock<ShardMessenger>,
+    /// Per-guild heartbeats. Kept out of `sessions` so `/debug` and the
+    /// watchdog never wait on the lock they may be diagnosing; this one is
+    /// only held for a map lookup, never across an await.
+    health: std::sync::Mutex<HashMap<GuildId, Arc<VoiceHealth>>>,
 }
 
 impl VoiceManager {
@@ -103,6 +114,7 @@ impl VoiceManager {
             config: Mutex::new(voice_config),
             songbird: OnceLock::new(),
             shard: OnceLock::new(),
+            health: std::sync::Mutex::new(HashMap::new()),
         }
     }
 
@@ -305,13 +317,14 @@ impl VoiceManager {
 
         let stt_handle = self.daemon.voice().voice_connect(&stt_provider_id).await?;
         let (stt_input, stt_events) = stt_handle.into_parts();
+        let health = VoiceHealth::new(mode, stt_provider_id.clone(), tts.clone());
 
         // Register songbird receive handler — pipes audio to daemon STT
         {
             let mut handler = call.lock().await;
             handler.add_global_event(
                 songbird::CoreEvent::VoiceTick.into(),
-                receiver::VoiceReceiver::new(stt_input),
+                receiver::VoiceReceiver::new(stt_input, Arc::clone(&health)),
             );
         }
 
@@ -326,6 +339,7 @@ impl VoiceManager {
             http,
             Arc::clone(self),
             tts.is_some(),
+            Arc::clone(&health),
         );
 
         let session = VoiceSession {
@@ -338,6 +352,7 @@ impl VoiceManager {
             tts_task: None,
         };
         self.sessions.lock().await.insert(guild_id, session);
+        self.health_map().insert(guild_id, health);
         tracing::info!(
             guild_id = %guild_id,
             voice_channel = %voice_channel,
@@ -354,6 +369,7 @@ impl VoiceManager {
     /// subsequent rejoin.
     pub async fn stop_session(&self, guild_id: &GuildId) -> Option<VoiceSession> {
         let session = self.sessions.lock().await.remove(guild_id);
+        self.health_map().remove(guild_id);
         if let Some(ref s) = session {
             if let Some(ref handle) = s.receiver_task {
                 handle.abort();
@@ -364,6 +380,25 @@ impl VoiceManager {
             tracing::info!(guild_id = %guild_id, "voice session stopped");
         }
         session
+    }
+
+    fn health_map(&self) -> std::sync::MutexGuard<'_, HashMap<GuildId, Arc<VoiceHealth>>> {
+        // Poisoning only means a panic mid-lookup; the map is still sound.
+        self.health.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    pub fn health(&self, guild_id: GuildId) -> Option<Arc<VoiceHealth>> {
+        self.health_map().get(&guild_id).cloned()
+    }
+
+    /// `/debug voice` for one guild, also what the watchdog DMs. Never
+    /// waits on `sessions`: it only notes whether that lock is held.
+    pub fn debug_snapshot(&self, guild_id: GuildId) -> Option<Vec<String>> {
+        let mut lines = self.health(guild_id)?.render();
+        if self.sessions.try_lock().is_err() {
+            lines[0].push_str(" · sessions lock held");
+        }
+        Some(lines)
     }
 
     /// Get the active mode for a guild.
@@ -449,10 +484,12 @@ impl VoiceManager {
             anyhow::bail!("Songbird not initialized");
         };
         let Some(call) = songbird.get(guild_id) else { return Ok(false); };
+        let health = self.health(guild_id);
 
         let vm = self.clone();
         let text = text.to_string();
         let handle = tokio::spawn(async move {
+            let synth = health.as_ref().map(|h| h.begin(Stage::Tts));
             let stereo = match vm.synthesize_for_discord(&text, &binding).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -460,9 +497,19 @@ impl VoiceManager {
                     return;
                 }
             };
+            if let Some(synth) = synth { synth.done(); }
+            let playing = health.as_ref().map(|h| h.begin(Stage::Play));
             let bytes: Vec<u8> = stereo.iter().flat_map(|s| s.to_le_bytes()).collect();
             let input = songbird::input::RawAdapter::new(std::io::Cursor::new(bytes), 48_000, 2);
-            call.lock().await.play_input(input.into());
+            let track = call.lock().await.play_input(input.into());
+            if let Some(playing) = playing {
+                // The handler lives until songbird drops the track: on its
+                // end, on `stop()`, or with the driver. Its drop ends the flight.
+                let _ = track.add_event(
+                    songbird::Event::Track(songbird::TrackEvent::End),
+                    PlaybackBeat(playing),
+                );
+            }
         });
 
         let mut sessions = self.sessions.lock().await;
@@ -493,6 +540,18 @@ impl VoiceManager {
                 call.lock().await.stop();
             }
         }
+    }
+}
+
+/// Songbird track handler that counts a finished playback. Holding the
+/// `InFlight` keeps the playback stage in flight until songbird drops it.
+struct PlaybackBeat(health::InFlight);
+
+#[async_trait::async_trait]
+impl songbird::EventHandler for PlaybackBeat {
+    async fn act(&self, _ctx: &songbird::EventContext<'_>) -> Option<songbird::Event> {
+        self.0.record();
+        None
     }
 }
 

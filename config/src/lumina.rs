@@ -20,6 +20,18 @@ pub struct VoiceConfig {
     pub tts_provider: Option<String>,
     /// TTS voice ID
     pub tts_voice: Option<String>,
+    /// Seconds a voice stage may stay in flight before the watchdog DMs
+    /// the owner. Default: `VoiceConfig::DEFAULT_WATCHDOG_SECS`.
+    #[serde(default)]
+    pub watchdog_secs: Option<u64>,
+}
+
+impl VoiceConfig {
+    pub const DEFAULT_WATCHDOG_SECS: u64 = 30;
+
+    pub fn watchdog_secs(&self) -> u64 {
+        self.watchdog_secs.unwrap_or(Self::DEFAULT_WATCHDOG_SECS)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -69,6 +81,17 @@ impl LuminaConfig {
         fs::write(&path, toml)
             .map_err(|e| format!("Failed to write config: {e}"))?;
         Ok(())
+    }
+
+    /// The bot owner's Discord user id. The template's `owner_id = 0`
+    /// means unset.
+    pub fn owner_id(&self) -> Option<u64> {
+        self.discord.owner_id.filter(|&id| id != 0)
+    }
+
+    /// Whether a Discord user is the configured bot owner.
+    pub fn is_owner(&self, discord_user_id: u64) -> bool {
+        self.owner_id() == Some(discord_user_id)
     }
 
     pub fn bot_token(&self) -> Option<&str> {

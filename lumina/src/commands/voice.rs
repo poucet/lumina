@@ -214,7 +214,7 @@ async fn save_voice_config(lx: &LuminaContext, voice_mgr: &crate::voice::VoiceMa
     }
 }
 
-async fn get_voice_manager(lx: &LuminaContext) -> anyhow::Result<Arc<crate::voice::VoiceManager>> {
+pub(super) async fn get_voice_manager(lx: &LuminaContext) -> anyhow::Result<Arc<crate::voice::VoiceManager>> {
     tracing::debug!("get_voice_manager: acquiring data read lock");
     let data = lx.ctx.data.read().await;
     tracing::debug!("get_voice_manager: got data lock");

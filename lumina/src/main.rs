@@ -3,6 +3,7 @@
 //! Connects to Discord via serenity and to simply-daemon for AI capabilities.
 
 mod chat;
+pub mod clock;
 mod commands;
 pub mod invite;
 pub mod json_fmt;
@@ -31,8 +32,12 @@ impl TypeMapKey for DaemonKey { type Value = Arc<dyn Daemon>; }
 pub struct ConfigKey;
 impl TypeMapKey for ConfigKey { type Value = config::LuminaConfig; }
 
+/// Daily-rolled log files under the data dir's `logs/` start with this.
+pub const LOG_FILE_PREFIX: &str = "lumina.log";
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    clock::init();
     setup_logging();
 
     config::load_env_file();
@@ -93,6 +98,9 @@ async fn main() -> anyhow::Result<()> {
         ))
     );
     voice_mgr.set_songbird(Arc::clone(&songbird));
+    let watchdog_voice_mgr = Arc::clone(&voice_mgr);
+    let watchdog_owner = lumina_cfg.owner_id().map(serenity::model::id::UserId::new);
+    let watchdog_after = std::time::Duration::from_secs(lumina_cfg.voice.watchdog_secs());
 
     let mut client = Client::builder(token, intents)
         .event_handler(Handler {
@@ -107,6 +115,13 @@ async fn main() -> anyhow::Result<()> {
         .type_map_insert::<commands::SharedState>(Arc::new(commands::SharedState::new(tool_state)))
         .type_map_insert::<McpServerKey>(discord_skill)
         .await?;
+
+    match watchdog_owner {
+        Some(owner) => {
+            watchdog_voice_mgr.spawn_watchdog(Arc::clone(&client.http), owner, watchdog_after);
+        }
+        None => tracing::warn!("no discord.owner_id: voice watchdog off"),
+    }
 
     tracing::info!("lumina starting");
     // Don't let a Discord failure (e.g. a reset/invalid bot token → 401) crash
@@ -185,7 +200,7 @@ fn setup_logging() {
     let file_layer = config::PathManager::logs_dir().and_then(|dir| {
         std::fs::create_dir_all(&dir).ok()?;
         let (writer, guard) =
-            tracing_appender::non_blocking(tracing_appender::rolling::daily(&dir, "lumina.log"));
+            tracing_appender::non_blocking(tracing_appender::rolling::daily(&dir, LOG_FILE_PREFIX));
         // The worker guard must outlive the program or buffered logs are lost.
         static GUARD: std::sync::OnceLock<tracing_appender::non_blocking::WorkerGuard> =
             std::sync::OnceLock::new();
@@ -337,8 +352,7 @@ impl EventHandler for Handler {
         if msg.content.starts_with('.') {
             let data = ctx.data.read().await;
             let cfg = data.get::<ConfigKey>().expect("ConfigKey missing");
-            let is_owner = cfg.discord.owner_id.is_some_and(|id| msg.author.id.get() == id);
-            if is_owner {
+            if cfg.is_owner(msg.author.id.get()) {
                 if msg.content.as_str() == ".sync" {
                     let registry = data.get::<CommandRegistry>().expect("CommandRegistry missing");
                     let definitions = registry.definitions();
