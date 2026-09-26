@@ -556,7 +556,7 @@ fn find_completers_for_command(
                 // Include this completer if:
                 // 1. It has no command specified (global/backwards compatible), or
                 // 2. Its command matches the one we're looking for
-                let matches = completer_cmd.as_ref().map_or(true, |cmd| cmd == command_name);
+                let matches = completer_cmd.as_ref().is_none_or(|cmd| cmd == command_name);
 
                 if matches {
                     Some(Ok((arg_name, method.sig.ident.clone())))

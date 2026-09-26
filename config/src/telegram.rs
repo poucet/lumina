@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct TelegramConfig {
     #[serde(default)]
     pub telegram: TelegramBotConfig,
@@ -31,13 +32,6 @@ pub struct TelegramBotConfig {
     pub poll_timeout_secs: Option<u64>,
 }
 
-impl Default for TelegramConfig {
-    fn default() -> Self {
-        Self {
-            telegram: TelegramBotConfig::default(),
-        }
-    }
-}
 
 impl Default for TelegramBotConfig {
     fn default() -> Self {

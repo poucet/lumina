@@ -166,7 +166,7 @@ impl CompleterTestApp {
         Ok(models
             .into_iter()
             .filter(|m| m.starts_with(partial))
-            .map(|m| commands::Completion::simple(m))
+            .map(commands::Completion::simple)
             .collect())
     }
 }

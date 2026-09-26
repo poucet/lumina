@@ -66,7 +66,7 @@ where
         &self,
         context: &Context<'a, U>,
     ) -> Result<Vec<Completion>, CompletionError> {
-        let cache_key = Self::cache_key(&context.stream());
+        let cache_key = Self::cache_key(context.stream());
 
         // Check cache
         {
