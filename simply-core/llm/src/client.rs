@@ -139,7 +139,7 @@ impl Client {
             futures::future::ready(Some(messages))
         });
 
-        Ok(Box::pin(buffered_stream.flat_map(|messages| stream::iter(messages))))
+        Ok(Box::pin(buffered_stream.flat_map(stream::iter)))
     }
 }
 
@@ -458,7 +458,7 @@ mod tests {
     #[test]
     fn test_client_default_creation() {
         let client = Client::default();
-        assert!(std::ptr::addr_of!(client.client).is_null() == false);
+        assert!(!std::ptr::addr_of!(client.client).is_null());
     }
 
     #[test]
@@ -466,7 +466,7 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert("x-test", "value".parse().unwrap());
         let client = Client::with_headers(headers);
-        assert!(std::ptr::addr_of!(client.client).is_null() == false);
+        assert!(!std::ptr::addr_of!(client.client).is_null());
     }
 }
 

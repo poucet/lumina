@@ -361,7 +361,7 @@ impl MessagesRequest {
 
         MessagesRequest {
             model: model_name.to_string(),
-            messages: messages,
+            messages,
             // TODO: Don't hardcode
             max_tokens: 32000,
             stream: Some(stream),
@@ -488,6 +488,7 @@ pub(crate) enum ContentBlock {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[allow(clippy::enum_variant_names)] // variant names are the Anthropic wire tags (text_delta, ...)
 pub(crate) enum Delta {
     TextDelta {
         text: String,

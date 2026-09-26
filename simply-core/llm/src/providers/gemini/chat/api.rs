@@ -335,7 +335,7 @@ impl From<&Content> for crate::ChatMessage {
         let blocks: Vec<crate::api::ContentBlock> = content
             .parts
             .iter()
-            .filter_map(|p| Option::<crate::api::ContentBlock>::from(p))
+            .filter_map(Option::<crate::api::ContentBlock>::from)
             .collect();
 
         crate::ChatMessage::new(content.role.into(), ChatPayload::new(blocks))
@@ -353,7 +353,7 @@ impl From<&Content> for crate::ChatChunk {
         let blocks: Vec<crate::api::ContentBlock> = content
             .parts
             .iter()
-            .filter_map(|p| Option::<crate::api::ContentBlock>::from(p))
+            .filter_map(Option::<crate::api::ContentBlock>::from)
             .collect();
 
         crate::ChatChunk::new(content.role.into(), ChatPayload::new(blocks))

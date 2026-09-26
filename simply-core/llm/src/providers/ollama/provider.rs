@@ -21,11 +21,13 @@ pub struct OllamaProvider {
     keep_alive: String,
 }
 
-impl OllamaProvider {
-    pub fn default() -> Self {
+impl Default for OllamaProvider {
+    fn default() -> Self {
         Self::new("http://localhost:11434")
     }
+}
 
+impl OllamaProvider {
     pub fn new(base_url: &str) -> Self {
         OllamaProvider {
             client: Client::default(),

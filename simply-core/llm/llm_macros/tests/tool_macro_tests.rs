@@ -92,13 +92,13 @@ fn test_complex_function_multiple_types() {
         number: 42,
         text: "test".to_string(),
         flag: true,
-        decimal: 3.14,
+        decimal: 2.5,
     };
 
     assert_eq!(args.number, 42);
     assert_eq!(args.text, "test");
-    assert_eq!(args.flag, true);
-    assert_eq!(args.decimal, 3.14);
+    assert!(args.flag);
+    assert_eq!(args.decimal, 2.5);
 }
 
 // Test 5: Function with Vec parameter
@@ -305,6 +305,7 @@ fn test_nested_generics() {
 }
 
 // Test 16: Empty doc comment handling
+#[allow(clippy::empty_docs)] // the empty doc comment is what this test exercises
 ///
 #[tool]
 fn empty_doc(x: i32) -> i32 {
